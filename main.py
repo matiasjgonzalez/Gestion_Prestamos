@@ -1,17 +1,25 @@
+import sys
+import os
+
+# Forzar que se vea el output en Render
+print(f"Python version: {sys.version}", flush=True)
+print(f"DATABASE_URL set: {'DATABASE_URL' in os.environ}", flush=True)
+print(f"PORT: {os.environ.get('PORT', 'NOT SET')}", flush=True)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from routes import auth, clientes, prestamos, pagos, mora
 from contextlib import asynccontextmanager
 
-# Importar models para que SQLAlchemy los registre
 import models  # noqa: F401
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Crear tablas al iniciar
+    print("Creating tables...", flush=True)
     Base.metadata.create_all(bind=engine)
+    print("Tables created OK", flush=True)
     yield
 
 
@@ -25,7 +33,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Registrar routers
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
 app.include_router(prestamos.router, prefix="/prestamos", tags=["Préstamos"])
