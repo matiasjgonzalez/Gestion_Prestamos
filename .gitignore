@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+gestion_prest.db
+.env
+node_modules/
+frontend/dist/
