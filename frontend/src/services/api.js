@@ -11,7 +11,7 @@ const logger = {
 
 // ─── Cache en memoria ───
 const cache = new Map();
-const CACHE_TTL = 30_000; // 30 segundos
+const CACHE_TTL = 120_000; // 120 segundos
 
 function getCached(key) {
   const entry = cache.get(key);
@@ -126,6 +126,7 @@ export const prestamosAPI = {
     return api.put(`/prestamos/${prestamoId}/cuotas/${cuotaId}`, data);
   },
   getDashboard: () => api.get('/prestamos/dashboard'),
+  getDashboard: () => cachedGet('/prestamos/dashboard'),
   marcarCuotaPagada: (prestamoId, cuotaId) => {
     invalidateCache('/prestamos');
     return api.post(`/prestamos/${prestamoId}/cuotas/${cuotaId}/marcar-pagada`);
