@@ -26,7 +26,8 @@ export default function MoraPage() {
 
   const loadMora = async () => {
     try {
-      await verificarMora();
+      // No ejecutar la verificación automática en el montaje (costosa).
+      // Solo obtener los datos ya calculados en el servidor.
       const res = await getMora();
       setCuotas(res.data.cuotas);
       setTotalMora(res.data.total_en_mora);

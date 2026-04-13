@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useEffect } from 'react';
+import { getDashboard, getMora } from './services/api';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import Layout from './components/Layout';
 import { lazy, Suspense } from 'react';
@@ -78,10 +80,22 @@ function AppRoutes() {
 }
 
 export default function App() {
+  // Prefetch de datos pesados (dashboard/mora) cuando el usuario esté autenticado
+  function Prefetcher() {
+    const { isAuthenticated } = useAuth();
+    useEffect(() => {
+      if (!isAuthenticated) return;
+      // Calentar cache en background sin bloquear render
+      Promise.allSettled([getDashboard(), getMora()]);
+    }, [isAuthenticated]);
+    return null;
+  }
+
   return (
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
+          <Prefetcher />
           <ThemedToaster />
           <AppRoutes />
         </BrowserRouter>
