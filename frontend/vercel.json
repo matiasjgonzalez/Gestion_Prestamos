@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import Dashboard from './components/Dashboard';
+import Login from './components/Login';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
   useEffect(() => {
-    // Verificar si ya existe sesión/token al cargar
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
       if (token) {
@@ -23,10 +24,9 @@ export default function App() {
     checkAuth();
   }, []);
 
-  // Función para manejar login exitoso
   const handleLoginSuccess = (token) => {
     localStorage.setItem('token', token);
-    setIsAuthenticated(true); // ⭐ ESTO ES LO IMPORTANTE
+    setIsAuthenticated(true);
   };
 
   if (isAuthenticated === null) return <div>Cargando...</div>;
