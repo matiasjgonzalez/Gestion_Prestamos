@@ -720,6 +720,56 @@ select.form-control { cursor: pointer; }
 
 .date-icon-btn:hover { color: var(--accent); }
 
+/* ─── Remove number input spinners ─── */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.no-spinner { -moz-appearance: textfield; }
+
+/* ─── Cuotas fechas section ─── */
+.cuotas-fechas-section { margin-bottom: 16px; }
+
+.cuotas-fechas-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  letter-spacing: 0.02em;
+}
+
+.cuotas-fechas-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.cuota-fecha-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.cuota-num {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.cuota-monto-display {
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 90px;
+  text-align: right;
+}
+
 /* ─── Cuota auto-calc info ─── */
 .cuota-calc-info {
   display: flex;
