@@ -10,6 +10,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 );
 
 // Register service worker (PWA)
+// Service worker temporarily disabled for troubleshooting Vercel deployment.
+// To re-enable, restore the block below.
+/*
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((err) => {
@@ -17,3 +20,4 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+*/
