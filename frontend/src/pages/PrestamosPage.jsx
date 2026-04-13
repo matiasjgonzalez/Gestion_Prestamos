@@ -20,6 +20,8 @@ function estadoBadge(estado) {
 export default function PrestamosPage() {
   const [prestamos, setPrestamos] = useState([]);
   const [clientes, setClientes] = useState([]);
+  const [page, setPage] = useState(0);
+  const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -28,15 +30,23 @@ export default function PrestamosPage() {
   const [form, setForm] = useState({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '' });
   const [cuotasDetalle, setCuotasDetalle] = useState([{ numero_cuota: 1, fecha_vencimiento: '', monto: '' }]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [page]);
 
-  const loadData = async () => {
+  const loadData = async (p = page) => {
     try {
-      const [pRes, cRes] = await Promise.all([getPrestamos(), getClientes()]);
+      setLoading(true);
+      const offset = p * pageSize;
+      const [pRes, cRes] = await Promise.all([
+        getPrestamos({ limit: pageSize, offset }),
+        getClientes('', { limit: 1000, offset: 0 }),
+      ]);
       setPrestamos(pRes.data);
       setClientes(cRes.data);
-    } catch { toast.error('Error al cargar datos'); }
-    finally { setLoading(false); }
+    } catch {
+      toast.error('Error al cargar datos');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openCreate = () => {
@@ -135,6 +145,17 @@ export default function PrestamosPage() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+          <div>
+            <button className="btn btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+              Anterior
+            </button>
+            <button className="btn btn-sm" onClick={() => setPage((p) => p + 1)} style={{ marginLeft: 8 }}>
+              Siguiente
+            </button>
+          </div>
+          <div className="text-sm">Página {page + 1}</div>
         </div>
       )}
 

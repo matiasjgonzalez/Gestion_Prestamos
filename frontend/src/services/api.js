@@ -89,8 +89,9 @@ export const authAPI = {
 
 // ─── Clientes ───
 export const clientesAPI = {
-  getAll: (search = '') =>
-    cachedGet('/clientes/', search ? { search } : {}),
+  // getAll supports optional params: { search, limit, offset }
+  getAll: (search = '', params = {}) =>
+    cachedGet('/clientes/', search ? { search, ...params } : params),
   getById: (id) => cachedGet(`/clientes/${id}`),
   create: (data) => {
     invalidateCache('/clientes');
@@ -108,7 +109,7 @@ export const clientesAPI = {
 
 // ─── Préstamos ───
 export const prestamosAPI = {
-  getAll: () => cachedGet('/prestamos/'),
+  getAll: (params = {}) => cachedGet('/prestamos/', params),
   getById: (id) => cachedGet(`/prestamos/${id}`),
   getCompleto: (id) => cachedGet(`/prestamos/${id}/completo`),
   create: (data) => {
@@ -125,7 +126,6 @@ export const prestamosAPI = {
     invalidateCache('/prestamos');
     return api.put(`/prestamos/${prestamoId}/cuotas/${cuotaId}`, data);
   },
-  getDashboard: () => api.get('/prestamos/dashboard'),
   getDashboard: () => cachedGet('/prestamos/dashboard'),
   marcarCuotaPagada: (prestamoId, cuotaId) => {
     invalidateCache('/prestamos');
@@ -156,12 +156,12 @@ export const moraAPI = {
 
 // ─── Compatibilidad (no romper imports existentes) ───
 export const login = (u, p) => authAPI.login(u, p);
-export const getClientes = (s) => clientesAPI.getAll(s);
+export const getClientes = (s, params = {}) => clientesAPI.getAll(s, params);
 export const getCliente = (id) => clientesAPI.getById(id);
 export const createCliente = (d) => clientesAPI.create(d);
 export const updateCliente = (id, d) => clientesAPI.update(id, d);
 export const deleteCliente = (id) => clientesAPI.delete(id);
-export const getPrestamos = () => prestamosAPI.getAll();
+export const getPrestamos = (params = {}) => prestamosAPI.getAll(params);
 export const getPrestamo = (id) => prestamosAPI.getById(id);
 export const getPrestamoCompleto = (id) => prestamosAPI.getCompleto(id);
 export const createPrestamo = (d) => prestamosAPI.create(d);

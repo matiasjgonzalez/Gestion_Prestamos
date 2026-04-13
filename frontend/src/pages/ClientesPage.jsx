@@ -20,6 +20,8 @@ const emptyForm = {
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState([]);
+  const [page, setPage] = useState(0);
+  const [pageSize] = useState(20);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -30,11 +32,13 @@ export default function ClientesPage() {
 
   useEffect(() => {
     loadClientes();
-  }, []);
+  }, [page]);
 
-  const loadClientes = async (q = '') => {
+  const loadClientes = async (q = '', p = page) => {
     try {
-      const res = await getClientes(q);
+      setLoading(true);
+      const offset = p * pageSize;
+      const res = await getClientes(q, { limit: pageSize, offset });
       setClientes(res.data);
     } catch {
       toast.error('Error al cargar clientes');
@@ -46,7 +50,8 @@ export default function ClientesPage() {
   const handleSearch = (e) => {
     const val = e.target.value;
     setSearch(val);
-    loadClientes(val);
+    setPage(0);
+    loadClientes(val, 0);
   };
 
   const openCreate = () => {
@@ -168,6 +173,17 @@ export default function ClientesPage() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+          <div>
+            <button className="btn btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+              Anterior
+            </button>
+            <button className="btn btn-sm" onClick={() => setPage((p) => p + 1)} style={{ marginLeft: 8 }}>
+              Siguiente
+            </button>
+          </div>
+          <div className="text-sm">Página {page + 1}</div>
         </div>
       )}
 
