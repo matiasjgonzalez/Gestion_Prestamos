@@ -5,4 +5,3 @@ python-dotenv
 python-jose[cryptography]
 pydantic
 python-multipart
-psycopg2-binary

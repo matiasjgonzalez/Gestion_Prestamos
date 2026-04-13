@@ -1,7 +1,6 @@
 import sys
 import os
 
-# Forzar que se vea el output en Render
 print(f"Python version: {sys.version}", flush=True)
 print(f"DATABASE_URL set: {'DATABASE_URL' in os.environ}", flush=True)
 print(f"PORT: {os.environ.get('PORT', 'NOT SET')}", flush=True)

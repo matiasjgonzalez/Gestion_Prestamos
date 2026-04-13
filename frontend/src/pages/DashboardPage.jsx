@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getDashboard, verificarMora, getMora } from '../services/api';
+import { getDashboard } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign,
@@ -20,7 +20,6 @@ function formatMoney(n) {
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
-  const [moraData, setMoraData] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -30,14 +29,9 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      // Verificar mora primero (marca cuotas vencidas)
-      await verificarMora();
-      const [dashRes, moraRes] = await Promise.all([
-        getDashboard(),
-        getMora(),
-      ]);
-      setData(dashRes.data);
-      setMoraData(moraRes.data);
+      // 1 sola request: dashboard + verificar mora + cuotas en mora
+      const res = await getDashboard();
+      setData(res.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -54,6 +48,8 @@ export default function DashboardPage() {
   }
 
   if (!data) return null;
+
+  const moraData = data.mora;
 
   const stats = [
     {

@@ -10,16 +10,25 @@ DATABASE_URL = os.getenv(
     "sqlite:///./gestion_prest.db",
 )
 
-# Configuración según el tipo de DB
-connect_args = {}
 is_sqlite = DATABASE_URL.startswith("sqlite")
+connect_args = {}
 
 if is_sqlite:
     connect_args = {"check_same_thread": False}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# Pool optimizado para Supabase pooler
+pool_kwargs = {}
+if not is_sqlite:
+    pool_kwargs = {
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_timeout": 30,
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+    }
 
-# Habilitar foreign keys en SQLite
+engine = create_engine(DATABASE_URL, connect_args=connect_args, **pool_kwargs)
+
 if is_sqlite:
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):

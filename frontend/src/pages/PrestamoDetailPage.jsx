@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  getPrestamo,
-  getCuotas,
-  getDeuda,
-  getPagos,
-  registrarPago,
-  getCliente,
-} from '../services/api';
+import { getPrestamoCompleto, registrarPago, invalidateCache } from '../services/api';
 import Modal from '../components/Modal';
 import toast from 'react-hot-toast';
 import { ArrowLeft, DollarSign, Calendar, Hash } from 'lucide-react';
@@ -35,11 +28,7 @@ function cuotaBadge(estado) {
 export default function PrestamoDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [prestamo, setPrestamo] = useState(null);
-  const [cliente, setCliente] = useState(null);
-  const [cuotas, setCuotas] = useState([]);
-  const [deuda, setDeuda] = useState(0);
-  const [pagos, setPagos] = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [pagoMonto, setPagoMonto] = useState('');
@@ -51,22 +40,9 @@ export default function PrestamoDetailPage() {
 
   const loadData = async () => {
     try {
-      const [pRes, cRes, dRes, pagosRes] = await Promise.all([
-        getPrestamo(id),
-        getCuotas(id),
-        getDeuda(id),
-        getPagos(id),
-      ]);
-      setPrestamo(pRes.data);
-      setCuotas(cRes.data);
-      setDeuda(dRes.data.deuda_restante);
-      setPagos(pagosRes.data);
-
-      // Cargar cliente
-      if (pRes.data.cliente_id) {
-        const clRes = await getCliente(pRes.data.cliente_id);
-        setCliente(clRes.data);
-      }
+      // 1 sola request: prestamo + cliente + cuotas + pagos + deuda
+      const res = await getPrestamoCompleto(id);
+      setData(res.data);
     } catch {
       toast.error('Error al cargar préstamo');
       navigate('/prestamos');
@@ -88,6 +64,9 @@ export default function PrestamoDetailPage() {
       setShowPagoModal(false);
       setPagoMonto('');
       setPagoFecha('');
+      // Invalidar cache y recargar
+      invalidateCache(`/prestamos/${id}`);
+      setLoading(true);
       loadData();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Error al registrar pago');
@@ -95,10 +74,9 @@ export default function PrestamoDetailPage() {
   };
 
   if (loading) return <div className="empty-state"><p>Cargando...</p></div>;
-  if (!prestamo) return null;
+  if (!data) return null;
 
-  const totalCuotas = cuotas.reduce((s, c) => s + c.monto, 0);
-  const totalPagado = pagos.reduce((s, p) => s + p.monto_pagado, 0);
+  const { prestamo, cliente, cuotas_rel, pagos, deuda_restante, total_cuotas, total_pagado } = data;
 
   return (
     <div>
@@ -135,16 +113,16 @@ export default function PrestamoDetailPage() {
         </div>
         <div className="stat-card">
           <div className="stat-label">Total a Pagar</div>
-          <div className="stat-value accent">{formatMoney(totalCuotas)}</div>
+          <div className="stat-value accent">{formatMoney(total_cuotas)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Total Pagado</div>
-          <div className="stat-value success">{formatMoney(totalPagado)}</div>
+          <div className="stat-value success">{formatMoney(total_pagado)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Deuda Restante</div>
-          <div className={`stat-value ${deuda > 0 ? 'danger' : 'success'}`}>
-            {formatMoney(deuda)}
+          <div className={`stat-value ${deuda_restante > 0 ? 'danger' : 'success'}`}>
+            {formatMoney(deuda_restante)}
           </div>
         </div>
       </div>
@@ -191,7 +169,7 @@ export default function PrestamoDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {cuotas.map((c) => (
+            {cuotas_rel.map((c) => (
               <tr key={c.id}>
                 <td className="text-mono">{c.numero_cuota}</td>
                 <td>{new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR')}</td>
@@ -285,7 +263,7 @@ export default function PrestamoDetailPage() {
                 marginTop: 8,
               }}
             >
-              Deuda restante: <strong>{formatMoney(deuda)}</strong>
+              Deuda restante: <strong>{formatMoney(deuda_restante)}</strong>
             </div>
             <div className="modal-footer">
               <button
