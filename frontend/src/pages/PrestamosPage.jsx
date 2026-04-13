@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPrestamos, getClientes, createPrestamo, deletePrestamo } from '../services/api';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Eye, Banknote, PlusCircle, MinusCircle } from 'lucide-react';
+import { Plus, Trash2, Eye, Banknote, PlusCircle, MinusCircle, Calendar, Search, X } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
 
@@ -26,8 +26,33 @@ export default function PrestamosPage() {
   const [form, setForm] = useState({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '' });
   const [cuotasDetalle, setCuotasDetalle] = useState([{ numero_cuota: 1, fecha_vencimiento: '', monto: '' }]);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [clienteSearch, setClienteSearch] = useState('');
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const clienteRef = useRef(null);
+  const fechaRef = useRef(null);
 
   useEffect(() => { loadData(); }, [page]);
+
+  // Cerrar dropdown al click fuera
+  useEffect(() => {
+    const handler = (e) => {
+      if (clienteRef.current && !clienteRef.current.contains(e.target)) {
+        setShowClientDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filteredClientes = clientes.filter((c) => {
+    const q = clienteSearch.toLowerCase();
+    return (
+      c.nombre.toLowerCase().includes(q) ||
+      c.apellido.toLowerCase().includes(q) ||
+      `${c.nombre} ${c.apellido}`.toLowerCase().includes(q) ||
+      c.dni.includes(q)
+    );
+  }).slice(0, 8);
 
   const loadData = async (p = page) => {
     try {
@@ -69,6 +94,8 @@ export default function PrestamosPage() {
   const openCreate = () => {
     setForm({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '' });
     setCuotasDetalle([{ numero_cuota: 1, fecha_vencimiento: '', monto: '' }]);
+    setClienteSearch('');
+    setShowClientDropdown(false);
     setShowModal(true);
   };
 
@@ -87,6 +114,7 @@ export default function PrestamosPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+    if (!form.cliente_id) { toast.error('Seleccioná un cliente'); return; }
     for (const c of cuotasDetalle) {
       if (!c.fecha_vencimiento || !c.monto) { toast.error('Completá fecha y monto de todas las cuotas'); return; }
     }
@@ -201,14 +229,74 @@ export default function PrestamosPage() {
             <div className="form-row">
               <div className="form-group">
                 <label>Cliente</label>
-                <select className="form-control" value={form.cliente_id} onChange={(e) => setForm((f) => ({ ...f, cliente_id: e.target.value }))} required>
-                  <option value="">Seleccionar...</option>
-                  {clientes.map((c) => (<option key={c.id} value={c.id}>{c.nombre} {c.apellido} — DNI {c.dni}</option>))}
-                </select>
+                <div className="cliente-search-wrapper" ref={clienteRef}>
+                  <div className="cliente-search-input-wrap">
+                    <Search size={15} className="cliente-search-icon" />
+                    <input
+                      className="form-control cliente-search-input"
+                      placeholder="Buscar por nombre o DNI..."
+                      value={clienteSearch}
+                      onChange={(e) => {
+                        setClienteSearch(e.target.value);
+                        setShowClientDropdown(true);
+                        if (!e.target.value) setForm((f) => ({ ...f, cliente_id: '' }));
+                      }}
+                      onFocus={() => setShowClientDropdown(true)}
+                      autoComplete="off"
+                    />
+                    {form.cliente_id && (
+                      <button type="button" className="cliente-clear-btn" onClick={() => {
+                        setClienteSearch('');
+                        setForm((f) => ({ ...f, cliente_id: '' }));
+                      }}>
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  {showClientDropdown && clienteSearch && (
+                    <div className="cliente-dropdown">
+                      {filteredClientes.length === 0 ? (
+                        <div className="cliente-dropdown-empty">Sin resultados para "{clienteSearch}"</div>
+                      ) : (
+                        filteredClientes.map((c) => (
+                          <button
+                            type="button"
+                            key={c.id}
+                            className={`cliente-dropdown-item ${form.cliente_id === c.id ? 'selected' : ''}`}
+                            onClick={() => {
+                              setForm((f) => ({ ...f, cliente_id: c.id }));
+                              setClienteSearch(`${c.nombre} ${c.apellido}`);
+                              setShowClientDropdown(false);
+                            }}
+                          >
+                            <span className="cliente-item-nombre">{c.nombre} {c.apellido}</span>
+                            <span className="cliente-item-dni">DNI {c.dni}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="form-group">
                 <label>Fecha de Inicio</label>
-                <input className="form-control" type="date" value={form.fecha_inicio} onChange={(e) => setForm((f) => ({ ...f, fecha_inicio: e.target.value }))} />
+                <div className="date-input-wrap">
+                  <input
+                    ref={fechaRef}
+                    className="form-control date-input"
+                    type="date"
+                    value={form.fecha_inicio}
+                    onChange={(e) => setForm((f) => ({ ...f, fecha_inicio: e.target.value }))}
+                  />
+                  <button
+                    type="button"
+                    className="date-icon-btn"
+                    onClick={() => fechaRef.current?.showPicker?.() ?? fechaRef.current?.click()}
+                    tabIndex={-1}
+                  >
+                    <Calendar size={16} />
+                  </button>
+                </div>
               </div>
             </div>
             <div className="form-row">
