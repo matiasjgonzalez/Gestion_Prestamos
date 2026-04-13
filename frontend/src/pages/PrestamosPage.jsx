@@ -2,15 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPrestamos, getClientes, createPrestamo, deletePrestamo } from '../services/api';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Eye, Banknote, PlusCircle, MinusCircle } from 'lucide-react';
-
-function formatMoney(n) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency', currency: 'ARS',
-    minimumFractionDigits: 0, maximumFractionDigits: 0,
-  }).format(n);
-}
+import { formatMoney } from '../utils/helpers';
+import { SkeletonTable } from '../components/Skeleton';
 
 function estadoBadge(estado) {
   if (estado === 'activo') return <span className="badge badge-default">Activo</span>;
@@ -29,6 +25,7 @@ export default function PrestamosPage() {
 
   const [form, setForm] = useState({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '' });
   const [cuotasDetalle, setCuotasDetalle] = useState([{ numero_cuota: 1, fecha_vencimiento: '', monto: '' }]);
+  const [confirmModal, setConfirmModal] = useState(null);
 
   useEffect(() => { loadData(); }, [page]);
 
@@ -98,10 +95,17 @@ export default function PrestamosPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este préstamo y todas sus cuotas/pagos?')) return;
-    try { await deletePrestamo(id); toast.success('Préstamo eliminado'); loadData(); }
-    catch { toast.error('Error al eliminar'); }
+  const handleDelete = (id) => {
+    setConfirmModal({
+      title: '¿Eliminar préstamo?',
+      message: 'Se eliminarán también todas las cuotas y pagos asociados. Esta acción no se puede deshacer.',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try { await deletePrestamo(id); toast.success('Préstamo eliminado'); loadData(); }
+        catch { toast.error('Error al eliminar'); }
+      },
+    });
   };
 
   const totalCuotas = cuotasDetalle.reduce((sum, c) => sum + (parseFloat(c.monto) || 0), 0);
@@ -118,7 +122,7 @@ export default function PrestamosPage() {
       </div>
 
       {loading ? (
-        <div className="empty-state"><p>Cargando...</p></div>
+        <SkeletonTable rows={6} cols={8} />
       ) : prestamos.length === 0 ? (
         <div className="empty-state"><Banknote size={40} /><h3>Sin préstamos</h3><p>Creá un préstamo para empezar</p></div>
       ) : (
@@ -159,6 +163,16 @@ export default function PrestamosPage() {
             <div className="text-sm">Página {page + 1}</div>
           </div>
         </>
+      )}
+
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          danger={confirmModal.danger}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
       )}
 
       {showModal && (

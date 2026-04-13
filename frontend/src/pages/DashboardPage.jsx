@@ -8,15 +8,8 @@ import {
   Banknote,
   Users,
 } from 'lucide-react';
-
-function formatMoney(n) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
-}
+import { formatMoney } from '../utils/helpers';
+import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
@@ -41,8 +34,10 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="empty-state">
-        <p>Cargando...</p>
+      <div>
+        <div className="page-header"><h2>Dashboard</h2></div>
+        <SkeletonCards count={5} />
+        <SkeletonTable rows={3} cols={5} />
       </div>
     );
   }

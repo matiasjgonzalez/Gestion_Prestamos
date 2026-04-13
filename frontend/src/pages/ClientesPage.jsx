@@ -7,8 +7,11 @@ import {
   deleteCliente,
 } from '../services/api';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { Plus, Search, Pencil, Trash2, Eye, Users } from 'lucide-react';
+import { useDebounce } from '../utils/helpers';
+import { SkeletonTable } from '../components/Skeleton';
 
 const emptyForm = {
   nombre: '',
@@ -23,16 +26,19 @@ export default function ClientesPage() {
   const [page, setPage] = useState(0);
   const [pageSize] = useState(20);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [errors, setErrors] = useState({});
+  const [confirmModal, setConfirmModal] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadClientes();
-  }, [page]);
+    loadClientes(debouncedSearch, page);
+  }, [debouncedSearch, page]);
 
   const loadClientes = async (q = '', p = page) => {
     try {
@@ -48,15 +54,14 @@ export default function ClientesPage() {
   };
 
   const handleSearch = (e) => {
-    const val = e.target.value;
-    setSearch(val);
+    setSearch(e.target.value);
     setPage(0);
-    loadClientes(val, 0);
   };
 
   const openCreate = () => {
     setEditingId(null);
     setForm({ ...emptyForm });
+    setErrors({});
     setShowModal(true);
   };
 
@@ -69,12 +74,26 @@ export default function ClientesPage() {
       telefono: c.telefono || '',
       domicilio: c.domicilio || '',
     });
+    setErrors({});
     setShowModal(true);
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!form.nombre.trim()) e.nombre = 'Campo requerido';
+    if (!form.apellido.trim()) e.apellido = 'Campo requerido';
+    if (!form.dni.trim()) e.dni = 'Campo requerido';
+    return e;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
     setSubmitting(true);
     try {
       if (editingId) {
@@ -93,19 +112,28 @@ export default function ClientesPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este cliente?')) return;
-    try {
-      await deleteCliente(id);
-      toast.success('Cliente eliminado');
-      loadClientes(search);
-    } catch {
-      toast.error('Error al eliminar');
-    }
+  const handleDelete = (id) => {
+    setConfirmModal({
+      title: '¿Eliminar cliente?',
+      message: 'Esta acción eliminará el cliente y no se puede deshacer.',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try {
+          await deleteCliente(id);
+          toast.success('Cliente eliminado');
+          loadClientes(debouncedSearch);
+        } catch {
+          toast.error('Error al eliminar');
+        }
+      },
+    });
   };
 
-  const handleChange = (field) => (e) =>
+  const handleChange = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
+  };
 
   return (
     <div>
@@ -128,7 +156,7 @@ export default function ClientesPage() {
       </div>
 
       {loading ? (
-        <div className="empty-state"><p>Cargando...</p></div>
+        <SkeletonTable rows={6} cols={5} />
       ) : clientes.length === 0 ? (
         <div className="empty-state">
           <Users size={40} />
@@ -189,6 +217,16 @@ export default function ClientesPage() {
         </>
       )}
 
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          danger={confirmModal.danger}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
+
       {showModal && (
         <Modal
           title={editingId ? 'Editar Cliente' : 'Nuevo Cliente'}
@@ -198,17 +236,20 @@ export default function ClientesPage() {
             <div className="form-row">
               <div className="form-group">
                 <label>Nombre</label>
-                <input className="form-control" value={form.nombre} onChange={handleChange('nombre')} required />
+                <input className={`form-control${errors.nombre ? ' input-error' : ''}`} value={form.nombre} onChange={handleChange('nombre')} />
+                {errors.nombre && <span className="field-error">{errors.nombre}</span>}
               </div>
               <div className="form-group">
                 <label>Apellido</label>
-                <input className="form-control" value={form.apellido} onChange={handleChange('apellido')} required />
+                <input className={`form-control${errors.apellido ? ' input-error' : ''}`} value={form.apellido} onChange={handleChange('apellido')} />
+                {errors.apellido && <span className="field-error">{errors.apellido}</span>}
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
                 <label>DNI</label>
-                <input className="form-control" value={form.dni} onChange={handleChange('dni')} required disabled={!!editingId} />
+                <input className={`form-control${errors.dni ? ' input-error' : ''}`} value={form.dni} onChange={handleChange('dni')} disabled={!!editingId} />
+                {errors.dni && <span className="field-error">{errors.dni}</span>}
               </div>
               <div className="form-group">
                 <label>Teléfono</label>

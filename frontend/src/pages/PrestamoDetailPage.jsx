@@ -8,15 +8,11 @@ import {
   invalidateCache,
 } from '../services/api';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, XCircle } from 'lucide-react';
-
-function formatMoney(n) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency', currency: 'ARS',
-    minimumFractionDigits: 0, maximumFractionDigits: 0,
-  }).format(n);
-}
+import { formatMoney } from '../utils/helpers';
+import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
 function cuotaBadge(estado) {
   switch (estado) {
@@ -35,6 +31,7 @@ export default function PrestamoDetailPage() {
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [pagoMonto, setPagoMonto] = useState('');
   const [pagoFecha, setPagoFecha] = useState('');
+  const [confirmModal, setConfirmModal] = useState(null);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -78,37 +75,56 @@ export default function PrestamoDetailPage() {
     }
   };
 
-  const handleMarcarCuota = async (cuotaId, numeroCuota) => {
+  const handleMarcarCuota = (cuotaId, numeroCuota) => {
     if (submitting) return;
-    if (!window.confirm(`¿Marcar cuota #${numeroCuota} como pagada?`)) return;
-    setSubmitting(true);
-    try {
-      await marcarCuotaPagada(id, cuotaId);
-      toast.success(`Cuota #${numeroCuota} marcada como pagada`);
-      reload();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Error');
-    } finally {
-      setSubmitting(false);
-    }
+    setConfirmModal({
+      title: `¿Marcar cuota #${numeroCuota} como pagada?`,
+      message: 'Esta acción no se puede deshacer.',
+      danger: false,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        setSubmitting(true);
+        try {
+          await marcarCuotaPagada(id, cuotaId);
+          toast.success(`Cuota #${numeroCuota} marcada como pagada`);
+          reload();
+        } catch (err) {
+          toast.error(err.response?.data?.detail || 'Error');
+        } finally {
+          setSubmitting(false);
+        }
+      },
+    });
   };
 
-  const handleCancelar = async () => {
+  const handleCancelar = () => {
     if (submitting) return;
-    if (!window.confirm('¿Cancelar el préstamo completo? Se marcarán todas las cuotas como pagadas.')) return;
-    setSubmitting(true);
-    try {
-      await cancelarPrestamo(id);
-      toast.success('Préstamo cancelado — todas las cuotas marcadas como pagadas');
-      reload();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Error');
-    } finally {
-      setSubmitting(false);
-    }
+    setConfirmModal({
+      title: '¿Cancelar el préstamo?',
+      message: 'Se marcarán todas las cuotas pendientes como pagadas. Esta acción no se puede deshacer.',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        setSubmitting(true);
+        try {
+          await cancelarPrestamo(id);
+          toast.success('Préstamo cancelado — todas las cuotas marcadas como pagadas');
+          reload();
+        } catch (err) {
+          toast.error(err.response?.data?.detail || 'Error');
+        } finally {
+          setSubmitting(false);
+        }
+      },
+    });
   };
 
-  if (loading) return <div className="empty-state"><p>Cargando...</p></div>;
+  if (loading) return (
+    <div>
+      <SkeletonCards count={4} />
+      <SkeletonTable rows={5} cols={5} />
+    </div>
+  );
   if (!data) return null;
 
   const { prestamo, cliente, cuotas_rel, pagos, deuda_restante, total_cuotas, total_pagado } = data;
@@ -250,6 +266,16 @@ export default function PrestamoDetailPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          danger={confirmModal.danger}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
       )}
 
       {/* Modal pago */}

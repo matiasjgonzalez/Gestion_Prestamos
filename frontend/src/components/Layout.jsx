@@ -65,6 +65,25 @@ export default function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
+      <nav className="bottom-nav">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) =>
+              `bottom-nav-item ${isActive ? 'active' : ''}`
+            }
+          >
+            <item.icon size={22} />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+        <button className="bottom-nav-item" onClick={handleLogout}>
+          <LogOut size={22} />
+          <span>Salir</span>
+        </button>
+      </nav>
     </div>
   );
 }

@@ -3,15 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { verificarMora, getMora } from '../services/api';
 import toast from 'react-hot-toast';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-
-function formatMoney(n) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
-}
+import { formatMoney } from '../utils/helpers';
+import { SkeletonTable } from '../components/Skeleton';
 
 export default function MoraPage() {
   const [cuotas, setCuotas] = useState([]);
@@ -60,7 +53,7 @@ export default function MoraPage() {
 
   const montoTotalMora = cuotas.reduce((s, c) => s + c.monto, 0);
 
-  if (loading) return <div className="empty-state"><p>Cargando...</p></div>;
+  if (loading) return <SkeletonTable rows={5} cols={7} />;
 
   return (
     <div>

@@ -2,13 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getCliente, getPrestamos } from '../services/api';
 import { ArrowLeft, Banknote } from 'lucide-react';
-
-function formatMoney(n) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency', currency: 'ARS',
-    minimumFractionDigits: 0, maximumFractionDigits: 0,
-  }).format(n);
-}
+import { formatMoney } from '../utils/helpers';
+import { SkeletonTable } from '../components/Skeleton';
 
 function estadoBadge(estado) {
   if (estado === 'activo') return <span className="badge badge-default">Activo</span>;
@@ -33,7 +28,7 @@ export default function ClienteDetailPage() {
     finally { setLoading(false); }
   };
 
-  if (loading) return <div className="empty-state"><p>Cargando...</p></div>;
+  if (loading) return <SkeletonTable rows={4} cols={6} />;
   if (!cliente) return null;
 
   return (
