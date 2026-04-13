@@ -13,11 +13,13 @@ export function AuthProvider({ children }) {
   const saveToken = (newToken) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
+    setIsAuthenticated(true);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
+    setIsAuthenticated(false);
   };
 
   return (
