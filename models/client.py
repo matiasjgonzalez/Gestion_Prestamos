@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base
@@ -13,7 +13,6 @@ class Cliente(Base):
     dni = Column(String(50), unique=True, nullable=False, index=True)
     telefono = Column(String(50), nullable=True)
     domicilio = Column(String(250), nullable=True)
-    score_riesgo = Column(Float, nullable=True)
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
 
     prestamos = relationship(

@@ -16,13 +16,13 @@ const emptyForm = {
   dni: '',
   telefono: '',
   domicilio: '',
-  score_riesgo: '',
 };
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ ...emptyForm });
@@ -63,29 +63,28 @@ export default function ClientesPage() {
       dni: c.dni,
       telefono: c.telefono || '',
       domicilio: c.domicilio || '',
-      score_riesgo: c.score_riesgo ?? '',
     });
     setShowModal(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      ...form,
-      score_riesgo: form.score_riesgo === '' ? null : parseFloat(form.score_riesgo),
-    };
+    if (submitting) return;
+    setSubmitting(true);
     try {
       if (editingId) {
-        await updateCliente(editingId, payload);
+        await updateCliente(editingId, form);
         toast.success('Cliente actualizado');
       } else {
-        await createCliente(payload);
+        await createCliente(form);
         toast.success('Cliente creado');
       }
       setShowModal(false);
       loadClientes(search);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -140,7 +139,6 @@ export default function ClientesPage() {
                 <th>DNI</th>
                 <th>Teléfono</th>
                 <th>Domicilio</th>
-                <th>Score</th>
                 <th style={{ width: 120 }}>Acciones</th>
               </tr>
             </thead>
@@ -154,34 +152,14 @@ export default function ClientesPage() {
                   <td>{c.telefono || '—'}</td>
                   <td>{c.domicilio || '—'}</td>
                   <td>
-                    {c.score_riesgo != null ? (
-                      <span className="text-mono">{c.score_riesgo}</span>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        className="btn-icon"
-                        title="Ver"
-                        onClick={() => navigate(`/clientes/${c.id}`)}
-                      >
+                      <button className="btn-icon" title="Ver" onClick={() => navigate(`/clientes/${c.id}`)}>
                         <Eye size={15} />
                       </button>
-                      <button
-                        className="btn-icon"
-                        title="Editar"
-                        onClick={() => openEdit(c)}
-                      >
+                      <button className="btn-icon" title="Editar" onClick={() => openEdit(c)}>
                         <Pencil size={15} />
                       </button>
-                      <button
-                        className="btn-icon"
-                        title="Eliminar"
-                        onClick={() => handleDelete(c.id)}
-                        style={{ color: 'var(--danger)' }}
-                      >
+                      <button className="btn-icon" title="Eliminar" onClick={() => handleDelete(c.id)} style={{ color: 'var(--danger)' }}>
                         <Trash2 size={15} />
                       </button>
                     </div>
@@ -202,72 +180,33 @@ export default function ClientesPage() {
             <div className="form-row">
               <div className="form-group">
                 <label>Nombre</label>
-                <input
-                  className="form-control"
-                  value={form.nombre}
-                  onChange={handleChange('nombre')}
-                  required
-                />
+                <input className="form-control" value={form.nombre} onChange={handleChange('nombre')} required />
               </div>
               <div className="form-group">
                 <label>Apellido</label>
-                <input
-                  className="form-control"
-                  value={form.apellido}
-                  onChange={handleChange('apellido')}
-                  required
-                />
+                <input className="form-control" value={form.apellido} onChange={handleChange('apellido')} required />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
                 <label>DNI</label>
-                <input
-                  className="form-control"
-                  value={form.dni}
-                  onChange={handleChange('dni')}
-                  required
-                  disabled={!!editingId}
-                />
+                <input className="form-control" value={form.dni} onChange={handleChange('dni')} required disabled={!!editingId} />
               </div>
               <div className="form-group">
                 <label>Teléfono</label>
-                <input
-                  className="form-control"
-                  value={form.telefono}
-                  onChange={handleChange('telefono')}
-                />
+                <input className="form-control" value={form.telefono} onChange={handleChange('telefono')} />
               </div>
             </div>
             <div className="form-group">
               <label>Domicilio</label>
-              <input
-                className="form-control"
-                value={form.domicilio}
-                onChange={handleChange('domicilio')}
-              />
-            </div>
-            <div className="form-group">
-              <label>Score de Riesgo</label>
-              <input
-                className="form-control"
-                type="number"
-                step="0.1"
-                value={form.score_riesgo}
-                onChange={handleChange('score_riesgo')}
-                placeholder="Ej: 7.5"
-              />
+              <input className="form-control" value={form.domicilio} onChange={handleChange('domicilio')} />
             </div>
             <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowModal(false)}
-              >
+              <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                 Cancelar
               </button>
-              <button type="submit" className="btn btn-primary">
-                {editingId ? 'Guardar' : 'Crear'}
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Guardando...' : editingId ? 'Guardar' : 'Crear'}
               </button>
             </div>
           </form>

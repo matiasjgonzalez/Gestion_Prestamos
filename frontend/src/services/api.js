@@ -126,6 +126,14 @@ export const prestamosAPI = {
     return api.put(`/prestamos/${prestamoId}/cuotas/${cuotaId}`, data);
   },
   getDashboard: () => api.get('/prestamos/dashboard'),
+  marcarCuotaPagada: (prestamoId, cuotaId) => {
+    invalidateCache('/prestamos');
+    return api.post(`/prestamos/${prestamoId}/cuotas/${cuotaId}/marcar-pagada`);
+  },
+  cancelarPrestamo: (id) => {
+    invalidateCache('/prestamos');
+    return api.post(`/prestamos/${id}/cancelar`);
+  },
 };
 
 // ─── Pagos ───
@@ -163,6 +171,8 @@ export const updateCuota = (pId, cId, d) => prestamosAPI.updateCuota(pId, cId, d
 export const registrarPago = (d) => pagosAPI.registrar(d);
 export const getPagos = (pId) => pagosAPI.getAll(pId);
 export const getDashboard = () => prestamosAPI.getDashboard();
+export const marcarCuotaPagada = (pId, cId) => prestamosAPI.marcarCuotaPagada(pId, cId);
+export const cancelarPrestamo = (id) => prestamosAPI.cancelarPrestamo(id);
 export const verificarMora = () => moraAPI.verificar();
 export const getMora = () => moraAPI.getAll();
 

@@ -11,7 +11,7 @@ from models.client import Cliente
 from services.prestamo_service import create_prestamo, calcular_deuda_restante
 from services.mora_service import verificar_mora, obtener_cuotas_en_mora
 from services.auth import get_current_user
-from datetime import date
+from datetime import date, datetime, timezone
 
 router = APIRouter()
 
@@ -21,38 +21,27 @@ def dashboard(
     db: Session = Depends(get_db),
     _user: str = Depends(get_current_user),
 ):
-    """Dashboard unificado: stats + mora en 1 sola request."""
-    # Verificar mora automáticamente
     verificar_mora(db)
-
     total_prestado = db.query(sqlfunc.sum(Prestamo.monto)).scalar() or 0
     total_cobrado = db.query(sqlfunc.sum(Pago.monto_pagado)).scalar() or 0
     total_cuotas = db.query(sqlfunc.sum(Cuota.monto)).scalar() or 0
     deuda_total = round(float(total_cuotas) - float(total_cobrado), 2)
-
     prestamos_activos = (
         db.query(sqlfunc.count(Prestamo.id))
         .filter(Prestamo.estado == "activo")
-        .scalar()
-        or 0
+        .scalar() or 0
     )
     clientes_count = (
         db.query(sqlfunc.count(sqlfunc.distinct(Prestamo.cliente_id))).scalar() or 0
     )
-
-    # Mora incluida en la misma respuesta
     cuotas_mora = obtener_cuotas_en_mora(db)
-
     return {
         "total_prestado": float(total_prestado),
         "total_cobrado": float(total_cobrado),
         "deuda_total": deuda_total,
         "prestamos_activos": prestamos_activos,
         "clientes_con_prestamos": clientes_count,
-        "mora": {
-            "total_en_mora": len(cuotas_mora),
-            "cuotas": cuotas_mora,
-        },
+        "mora": {"total_en_mora": len(cuotas_mora), "cuotas": cuotas_mora},
     }
 
 
@@ -62,7 +51,6 @@ def detalle_completo(
     db: Session = Depends(get_db),
     _user: str = Depends(get_current_user),
 ):
-    """Detalle completo de un préstamo: datos, cliente, cuotas, pagos, deuda. 1 sola request."""
     prestamo = (
         db.query(Prestamo)
         .options(
@@ -75,14 +63,11 @@ def detalle_completo(
     )
     if not prestamo:
         raise HTTPException(status_code=404, detail="Préstamo no encontrado")
-
     total_pagado = sum(float(p.monto_pagado) for p in prestamo.pagos)
     total_cuotas = sum(float(c.monto) for c in prestamo.cuotas_rel)
     deuda = round(total_cuotas - total_pagado, 2)
-
     cuotas_sorted = sorted(prestamo.cuotas_rel, key=lambda c: c.numero_cuota)
     pagos_sorted = sorted(prestamo.pagos, key=lambda p: p.fecha_pago, reverse=True)
-
     return {
         "prestamo": {
             "id": prestamo.id,
@@ -99,24 +84,19 @@ def detalle_completo(
             "nombre": prestamo.cliente.nombre,
             "apellido": prestamo.cliente.apellido,
             "dni": prestamo.cliente.dni,
-        }
-        if prestamo.cliente
-        else None,
+        } if prestamo.cliente else None,
         "cuotas_rel": [
             {
-                "id": c.id,
-                "prestamo_id": c.prestamo_id,
+                "id": c.id, "prestamo_id": c.prestamo_id,
                 "numero_cuota": c.numero_cuota,
                 "fecha_vencimiento": c.fecha_vencimiento.isoformat(),
-                "monto": float(c.monto),
-                "estado": c.estado,
+                "monto": float(c.monto), "estado": c.estado,
             }
             for c in cuotas_sorted
         ],
         "pagos": [
             {
-                "id": p.id,
-                "prestamo_id": p.prestamo_id,
+                "id": p.id, "prestamo_id": p.prestamo_id,
                 "monto_pagado": float(p.monto_pagado),
                 "fecha_pago": p.fecha_pago.isoformat() if p.fecha_pago else None,
                 "dias_atraso": p.dias_atraso,
@@ -126,6 +106,100 @@ def detalle_completo(
         "deuda_restante": deuda,
         "total_cuotas": total_cuotas,
         "total_pagado": total_pagado,
+    }
+
+
+@router.post("/{prestamo_id}/cuotas/{cuota_id}/marcar-pagada")
+def marcar_cuota_pagada(
+    prestamo_id: int,
+    cuota_id: int,
+    db: Session = Depends(get_db),
+    _user: str = Depends(get_current_user),
+):
+    """Marca una cuota individual como pagada y registra el pago."""
+    cuota = (
+        db.query(Cuota)
+        .filter(Cuota.id == cuota_id, Cuota.prestamo_id == prestamo_id)
+        .first()
+    )
+    if not cuota:
+        raise HTTPException(status_code=404, detail="Cuota no encontrada")
+    if cuota.estado == "pagada":
+        raise HTTPException(status_code=400, detail="La cuota ya está pagada")
+
+    cuota.estado = "pagada"
+    db.add(cuota)
+
+    # Registrar pago automático
+    pago = Pago(
+        prestamo_id=prestamo_id,
+        monto_pagado=float(cuota.monto),
+        fecha_pago=datetime.now(timezone.utc),
+        dias_atraso=max(0, (date.today() - cuota.fecha_vencimiento).days) if cuota.fecha_vencimiento <= date.today() else 0,
+    )
+    db.add(pago)
+
+    # Verificar si todas las cuotas están pagadas
+    no_pagadas = (
+        db.query(Cuota)
+        .filter(Cuota.prestamo_id == prestamo_id, Cuota.estado != "pagada")
+        .count()
+    )
+    if no_pagadas <= 1:  # la actual se está marcando
+        prestamo = db.query(Prestamo).get(prestamo_id)
+        if prestamo:
+            prestamo.estado = "finalizado"
+            db.add(prestamo)
+
+    db.commit()
+    return {"ok": True, "message": f"Cuota #{cuota.numero_cuota} marcada como pagada"}
+
+
+@router.post("/{prestamo_id}/cancelar")
+def cancelar_prestamo(
+    prestamo_id: int,
+    db: Session = Depends(get_db),
+    _user: str = Depends(get_current_user),
+):
+    """Cancela el préstamo: marca todas las cuotas pendientes como pagadas."""
+    prestamo = db.query(Prestamo).get(prestamo_id)
+    if not prestamo:
+        raise HTTPException(status_code=404, detail="Préstamo no encontrado")
+    if prestamo.estado == "finalizado":
+        raise HTTPException(status_code=400, detail="El préstamo ya está finalizado")
+
+    cuotas_pendientes = (
+        db.query(Cuota)
+        .filter(
+            Cuota.prestamo_id == prestamo_id,
+            Cuota.estado.in_(["pendiente", "vencida"]),
+        )
+        .all()
+    )
+
+    total_restante = sum(float(c.monto) for c in cuotas_pendientes)
+
+    for c in cuotas_pendientes:
+        c.estado = "pagada"
+        db.add(c)
+
+    # Registrar pago por el total restante
+    if total_restante > 0:
+        pago = Pago(
+            prestamo_id=prestamo_id,
+            monto_pagado=total_restante,
+            fecha_pago=datetime.now(timezone.utc),
+            dias_atraso=0,
+        )
+        db.add(pago)
+
+    prestamo.estado = "finalizado"
+    db.add(prestamo)
+    db.commit()
+
+    return {
+        "ok": True,
+        "message": f"Préstamo #{prestamo_id} cancelado. {len(cuotas_pendientes)} cuotas marcadas como pagadas.",
     }
 
 
@@ -157,11 +231,7 @@ def listar_prestamos(
     db: Session = Depends(get_db),
     _user: str = Depends(get_current_user),
 ):
-    return (
-        db.query(Prestamo)
-        .options(joinedload(Prestamo.cuotas_rel))
-        .all()
-    )
+    return db.query(Prestamo).options(joinedload(Prestamo.cuotas_rel)).all()
 
 
 @router.get("/{prestamo_id}", response_model=PrestamoRead)
@@ -203,12 +273,7 @@ def listar_cuotas(
     p = db.query(Prestamo).get(prestamo_id)
     if not p:
         raise HTTPException(status_code=404, detail="Préstamo no encontrado")
-    return (
-        db.query(Cuota)
-        .filter(Cuota.prestamo_id == prestamo_id)
-        .order_by(Cuota.numero_cuota)
-        .all()
-    )
+    return db.query(Cuota).filter(Cuota.prestamo_id == prestamo_id).order_by(Cuota.numero_cuota).all()
 
 
 @router.put("/{prestamo_id}/cuotas/{cuota_id}", response_model=CuotaRead)
@@ -219,11 +284,7 @@ def actualizar_cuota(
     db: Session = Depends(get_db),
     _user: str = Depends(get_current_user),
 ):
-    cuota = (
-        db.query(Cuota)
-        .filter(Cuota.id == cuota_id, Cuota.prestamo_id == prestamo_id)
-        .first()
-    )
+    cuota = db.query(Cuota).filter(Cuota.id == cuota_id, Cuota.prestamo_id == prestamo_id).first()
     if not cuota:
         raise HTTPException(status_code=404, detail="Cuota no encontrada")
     if payload.fecha_vencimiento is not None:
