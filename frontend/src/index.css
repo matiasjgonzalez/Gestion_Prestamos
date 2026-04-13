@@ -600,6 +600,24 @@ select.form-control { cursor: pointer; }
   justify-content: center;
 }
 
+/* ─── Cuota auto-calc info ─── */
+.cuota-calc-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--accent-muted);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  color: var(--accent);
+  margin-bottom: 16px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cuota-calc-info strong { font-weight: 700; }
+
 /* ─── Inline form validation ─── */
 .input-error { border-color: var(--danger) !important; }
 .input-error:focus { border-color: var(--danger) !important; }

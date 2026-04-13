@@ -46,6 +46,26 @@ export default function PrestamosPage() {
     }
   };
 
+  // Auto-distribuir monto por cuota cuando cambia monto, interés o cantidad de cuotas
+  useEffect(() => {
+    if (!showModal) return;
+    const monto = parseFloat(form.monto);
+    const interes = form.interes_total !== '' ? parseFloat(form.interes_total) : null;
+    const n = cuotasDetalle.length;
+    if (!monto || isNaN(monto) || interes === null || isNaN(interes) || n === 0) return;
+
+    const total = Math.round(monto * (1 + interes / 100));
+    const base = Math.floor(total / n);
+    const remainder = total - base * n;
+
+    setCuotasDetalle((prev) =>
+      prev.map((c, i) => ({
+        ...c,
+        monto: String(i === n - 1 ? base + remainder : base),
+      }))
+    );
+  }, [form.monto, form.interes_total, cuotasDetalle.length, showModal]);
+
   const openCreate = () => {
     setForm({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '' });
     setCuotasDetalle([{ numero_cuota: 1, fecha_vencimiento: '', monto: '' }]);
@@ -201,6 +221,12 @@ export default function PrestamosPage() {
                 <input className="form-control" type="number" step="0.1" value={form.interes_total} onChange={(e) => setForm((f) => ({ ...f, interes_total: e.target.value }))} placeholder="20" required />
               </div>
             </div>
+            {form.monto && form.interes_total !== '' && (
+              <div className="cuota-calc-info">
+                <span>Total a pagar: <strong>{formatMoney(Math.round(parseFloat(form.monto) * (1 + parseFloat(form.interes_total) / 100)))}</strong></span>
+                <span>→ {cuotasDetalle.length} cuota{cuotasDetalle.length !== 1 ? 's' : ''} de aprox. <strong>{formatMoney(Math.round(parseFloat(form.monto) * (1 + parseFloat(form.interes_total) / 100) / cuotasDetalle.length))}</strong></span>
+              </div>
+            )}
 
             <div style={{ marginTop: 8, marginBottom: 12 }}>
               <div className="flex-between">
