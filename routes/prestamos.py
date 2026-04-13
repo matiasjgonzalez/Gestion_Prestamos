@@ -9,7 +9,7 @@ from models.cuota import Cuota
 from models.pago import Pago
 from models.client import Cliente
 from services.prestamo_service import create_prestamo, calcular_deuda_restante
-from services.mora_service import verificar_mora, obtener_cuotas_en_mora
+from services.mora_service import obtener_cuotas_en_mora
 from services.auth import get_current_user
 from datetime import date, datetime, timezone
 
@@ -21,7 +21,6 @@ def dashboard(
     db: Session = Depends(get_db),
     _user: str = Depends(get_current_user),
 ):
-    verificar_mora(db)
     total_prestado = db.query(sqlfunc.sum(Prestamo.monto)).scalar() or 0
     total_cobrado = db.query(sqlfunc.sum(Pago.monto_pagado)).scalar() or 0
     total_cuotas = db.query(sqlfunc.sum(Cuota.monto)).scalar() or 0
@@ -228,10 +227,12 @@ def crear_prestamo(
 
 @router.get("/", response_model=list[PrestamoRead])
 def listar_prestamos(
+    offset: int = 0,
+    limit: int = 20,
     db: Session = Depends(get_db),
     _user: str = Depends(get_current_user),
 ):
-    return db.query(Prestamo).options(joinedload(Prestamo.cuotas_rel)).all()
+    return db.query(Prestamo).order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
 
 
 @router.get("/{prestamo_id}", response_model=PrestamoRead)
@@ -240,12 +241,7 @@ def obtener_prestamo(
     db: Session = Depends(get_db),
     _user: str = Depends(get_current_user),
 ):
-    p = (
-        db.query(Prestamo)
-        .options(joinedload(Prestamo.cuotas_rel))
-        .filter(Prestamo.id == prestamo_id)
-        .first()
-    )
+    p = db.query(Prestamo).filter(Prestamo.id == prestamo_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Préstamo no encontrado")
     return p

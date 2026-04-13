@@ -26,7 +26,7 @@ def create_cliente(
 
 @router.get("/", response_model=list[ClienteRead])
 def list_clientes(
-    skip: int = 0,
+    offset: int = 0,
     limit: int = 100,
     search: str = Query(None, description="Buscar por nombre, apellido o DNI"),
     db: Session = Depends(get_db),
@@ -40,7 +40,7 @@ def list_clientes(
             | (Cliente.apellido.ilike(pattern))
             | (Cliente.dni.ilike(pattern))
         )
-    return query.order_by(Cliente.apellido, Cliente.nombre).offset(skip).limit(limit).all()
+    return query.order_by(Cliente.apellido, Cliente.nombre).offset(offset).limit(limit).all()
 
 
 @router.get("/{cliente_id}", response_model=ClienteRead)
