@@ -122,41 +122,43 @@ export default function PrestamosPage() {
       ) : prestamos.length === 0 ? (
         <div className="empty-state"><Banknote size={40} /><h3>Sin préstamos</h3><p>Creá un préstamo para empezar</p></div>
       ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead><tr><th>ID</th><th>Cliente</th><th>Monto</th><th>Interés</th><th>Cuotas</th><th>Fecha Inicio</th><th>Estado</th><th style={{ width: 100 }}>Acciones</th></tr></thead>
-            <tbody>
-              {prestamos.map((p) => (
-                <tr key={p.id}>
-                  <td className="text-mono">#{p.id}</td>
-                  <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{getClienteName(p.cliente_id)}</td>
-                  <td className="text-mono">{formatMoney(p.monto)}</td>
-                  <td>{p.interes_total}%</td>
-                  <td>{p.cuotas}</td>
-                  <td>{p.fecha_inicio || '—'}</td>
-                  <td>{estadoBadge(p.estado)}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn-icon" title="Ver detalle" onClick={() => navigate(`/prestamos/${p.id}`)}><Eye size={15} /></button>
-                      <button className="btn-icon" title="Eliminar" onClick={() => handleDelete(p.id)} style={{ color: 'var(--danger)' }}><Trash2 size={15} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-          <div>
-            <button className="btn btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
-              Anterior
-            </button>
-            <button className="btn btn-sm" onClick={() => setPage((p) => p + 1)} style={{ marginLeft: 8 }}>
-              Siguiente
-            </button>
+        <>
+          <div className="table-wrapper">
+            <table>
+              <thead><tr><th>ID</th><th>Cliente</th><th>Monto</th><th>Interés</th><th>Cuotas</th><th>Fecha Inicio</th><th>Estado</th><th style={{ width: 100 }}>Acciones</th></tr></thead>
+              <tbody>
+                {prestamos.map((p) => (
+                  <tr key={p.id}>
+                    <td className="text-mono">#{p.id}</td>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{getClienteName(p.cliente_id)}</td>
+                    <td className="text-mono">{formatMoney(p.monto)}</td>
+                    <td>{p.interes_total}%</td>
+                    <td>{p.cuotas}</td>
+                    <td>{p.fecha_inicio || '—'}</td>
+                    <td>{estadoBadge(p.estado)}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn-icon" title="Ver detalle" onClick={() => navigate(`/prestamos/${p.id}`)}><Eye size={15} /></button>
+                        <button className="btn-icon" title="Eliminar" onClick={() => handleDelete(p.id)} style={{ color: 'var(--danger)' }}><Trash2 size={15} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="text-sm">Página {page + 1}</div>
-        </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+            <div>
+              <button className="btn btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+                Anterior
+              </button>
+              <button className="btn btn-sm" onClick={() => setPage((p) => p + 1)} style={{ marginLeft: 8 }}>
+                Siguiente
+              </button>
+            </div>
+            <div className="text-sm">Página {page + 1}</div>
+          </div>
+        </>
       )}
 
       {showModal && (

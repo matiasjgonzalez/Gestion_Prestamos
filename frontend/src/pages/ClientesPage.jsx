@@ -136,55 +136,57 @@ export default function ClientesPage() {
           <p>Creá tu primer cliente para empezar</p>
         </div>
       ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>DNI</th>
-                <th>Teléfono</th>
-                <th>Domicilio</th>
-                <th style={{ width: 120 }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientes.map((c) => (
-                <tr key={c.id}>
-                  <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                    {c.nombre} {c.apellido}
-                  </td>
-                  <td className="text-mono">{c.dni}</td>
-                  <td>{c.telefono || '—'}</td>
-                  <td>{c.domicilio || '—'}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn-icon" title="Ver" onClick={() => navigate(`/clientes/${c.id}`)}>
-                        <Eye size={15} />
-                      </button>
-                      <button className="btn-icon" title="Editar" onClick={() => openEdit(c)}>
-                        <Pencil size={15} />
-                      </button>
-                      <button className="btn-icon" title="Eliminar" onClick={() => handleDelete(c.id)} style={{ color: 'var(--danger)' }}>
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
+        <>
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>DNI</th>
+                  <th>Teléfono</th>
+                  <th>Domicilio</th>
+                  <th style={{ width: 120 }}>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-          <div>
-            <button className="btn btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
-              Anterior
-            </button>
-            <button className="btn btn-sm" onClick={() => setPage((p) => p + 1)} style={{ marginLeft: 8 }}>
-              Siguiente
-            </button>
+              </thead>
+              <tbody>
+                {clientes.map((c) => (
+                  <tr key={c.id}>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {c.nombre} {c.apellido}
+                    </td>
+                    <td className="text-mono">{c.dni}</td>
+                    <td>{c.telefono || '—'}</td>
+                    <td>{c.domicilio || '—'}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn-icon" title="Ver" onClick={() => navigate(`/clientes/${c.id}`)}>
+                          <Eye size={15} />
+                        </button>
+                        <button className="btn-icon" title="Editar" onClick={() => openEdit(c)}>
+                          <Pencil size={15} />
+                        </button>
+                        <button className="btn-icon" title="Eliminar" onClick={() => handleDelete(c.id)} style={{ color: 'var(--danger)' }}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="text-sm">Página {page + 1}</div>
-        </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+            <div>
+              <button className="btn btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+                Anterior
+              </button>
+              <button className="btn btn-sm" onClick={() => setPage((p) => p + 1)} style={{ marginLeft: 8 }}>
+                Siguiente
+              </button>
+            </div>
+            <div className="text-sm">Página {page + 1}</div>
+          </div>
+        </>
       )}
 
       {showModal && (
