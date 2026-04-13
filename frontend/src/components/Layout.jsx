@@ -1,11 +1,14 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard,
   Users,
   Banknote,
   AlertTriangle,
   LogOut,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 const navItems = [
@@ -17,6 +20,7 @@ const navItems = [
 
 export default function Layout() {
   const { logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -48,6 +52,10 @@ export default function Layout() {
           ))}
         </nav>
         <div className="sidebar-footer">
+          <button className="theme-toggle" onClick={toggleTheme}>
+            {theme === 'light' ? <Moon /> : <Sun />}
+            {theme === 'light' ? 'Modo oscuro' : 'Modo claro'}
+          </button>
           <button className="sidebar-link" onClick={handleLogout}>
             <LogOut />
             Cerrar sesión

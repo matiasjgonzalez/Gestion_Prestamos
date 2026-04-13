@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import Layout from './components/Layout';
 import { lazy, Suspense } from 'react';
 
-// Lazy loading: cada página se carga solo cuando se navega a ella
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ClientesPage = lazy(() => import('./pages/ClientesPage'));
@@ -32,6 +32,23 @@ function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
+}
+
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return (
+    <Toaster
+      position="top-right"
+      toastOptions={{
+        style: {
+          background: theme === 'dark' ? '#1E293B' : '#0F172A',
+          color: '#E2E8F0',
+          border: `1px solid ${theme === 'dark' ? '#334155' : '#1E293B'}`,
+          fontSize: '0.85rem',
+        },
+      }}
+    />
+  );
 }
 
 function AppRoutes() {
@@ -62,21 +79,13 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: '#1c1f2e',
-              color: '#e8e9ed',
-              border: '1px solid #2a2d3e',
-              fontSize: '0.85rem',
-            },
-          }}
-        />
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <ThemedToaster />
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
