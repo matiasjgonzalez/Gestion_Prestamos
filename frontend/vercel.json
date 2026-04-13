@@ -1,10 +1,30 @@
+import { useEffect, useState } from 'react';
 
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
-  "headers": [
-    {
-      "source": "/static/(.*)",
-      "headers": [{ "key": "cache-control", "value": "public, max-age=31536000" }]
-    }
-  ]
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
+
+  useEffect(() => {
+    // Verificar si ya existe sesión/token al cargar
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        // Validar token con el backend
+        try {
+          const response = await fetch('/api/auth/verify', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          setIsAuthenticated(response.ok);
+        } catch {
+          setIsAuthenticated(false);
+        }
+      } else {
+        setIsAuthenticated(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  if (isAuthenticated === null) return <div>Cargando...</div>;
+  
+  return isAuthenticated ? <Dashboard /> : <Login />;
 }
