@@ -79,6 +79,10 @@ export default function Layout() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+        <button className="bottom-nav-item" onClick={toggleTheme}>
+          {theme === 'light' ? <Moon size={22} /> : <Sun size={22} />}
+          <span>{theme === 'light' ? 'Oscuro' : 'Claro'}</span>
+        </button>
         <button className="bottom-nav-item" onClick={handleLogout}>
           <LogOut size={22} />
           <span>Salir</span>
