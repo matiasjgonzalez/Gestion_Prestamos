@@ -34,6 +34,7 @@ def listar_mora(
     result = obtener_cuotas_en_mora(db, search=search, limit=limit, offset=offset)
     return {
         "total_en_mora": result["total"],
+        "total_monto_mora": result["total_monto"],
         "cuotas": result["cuotas"],
     }
 

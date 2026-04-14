@@ -60,7 +60,9 @@ def obtener_cuotas_en_mora(
         q = q.filter(
             (Cliente.nombre + " " + Cliente.apellido).ilike(term)
         )
+    from sqlalchemy import func as sqlfunc
     total = q.count()
+    total_monto = q.with_entities(sqlfunc.sum(Cuota.monto)).scalar() or 0
     cuotas = q.order_by(Cuota.fecha_vencimiento).offset(offset).limit(limit).all()
     items = [
         {
@@ -75,4 +77,4 @@ def obtener_cuotas_en_mora(
         }
         for c in cuotas
     ]
-    return {"total": total, "cuotas": items}
+    return {"total": total, "total_monto": float(total_monto), "cuotas": items}

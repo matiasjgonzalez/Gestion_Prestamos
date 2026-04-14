@@ -11,6 +11,7 @@ const PAGE_SIZE = 10;
 export default function MoraPage() {
   const [cuotas, setCuotas] = useState([]);
   const [totalMora, setTotalMora] = useState(0);
+  const [totalMontoMora, setTotalMontoMora] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -36,6 +37,7 @@ export default function MoraPage() {
       });
       setCuotas(res.data.cuotas);
       setTotalMora(res.data.total_en_mora);
+      setTotalMontoMora(res.data.total_monto_mora);
     } catch {
       toast.error('Error al cargar mora');
     } finally {
@@ -62,7 +64,6 @@ export default function MoraPage() {
     }
   };
 
-  const montoTotalPagina = cuotas.reduce((s, c) => s + c.monto, 0);
   const totalPages = Math.ceil(totalMora / PAGE_SIZE);
 
   return (
@@ -100,8 +101,8 @@ export default function MoraPage() {
             <div className="stat-value danger">{totalMora}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Monto (esta página)</div>
-            <div className="stat-value danger">{formatMoney(montoTotalPagina)}</div>
+            <div className="stat-label">Monto Total en Mora</div>
+            <div className="stat-value danger">{formatMoney(totalMontoMora)}</div>
           </div>
         </div>
       )}
