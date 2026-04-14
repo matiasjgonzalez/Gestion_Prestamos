@@ -22,16 +22,15 @@ export default function ClienteDetailPage() {
 
   const loadData = async () => {
     try {
-      const [cRes, pRes, rRes] = await Promise.all([
+      const [cRes, pRes, rRes] = await Promise.allSettled([
         getCliente(id),
         getPrestamos({ cliente_id: parseInt(id), limit: 100, offset: 0 }),
         getClienteResumen(id),
       ]);
-      setCliente(cRes.data);
-      setPrestamos(pRes.data);
-      setResumen(rRes.data);
-    } catch {
-      navigate('/clientes');
+      if (cRes.status === 'rejected') { navigate('/clientes'); return; }
+      setCliente(cRes.value.data);
+      if (pRes.status === 'fulfilled') setPrestamos(pRes.value.data);
+      if (rRes.status === 'fulfilled') setResumen(rRes.value.data);
     } finally {
       setLoading(false);
     }
