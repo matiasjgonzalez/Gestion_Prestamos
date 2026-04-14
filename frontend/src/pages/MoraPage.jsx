@@ -37,7 +37,7 @@ export default function MoraPage() {
       });
       setCuotas(res.data.cuotas);
       setTotalMora(res.data.total_en_mora);
-      setTotalMontoMora(res.data.total_monto_mora);
+      setTotalMontoMora(res.data.total_monto_mora ?? 0);
     } catch {
       toast.error('Error al cargar mora');
     } finally {
