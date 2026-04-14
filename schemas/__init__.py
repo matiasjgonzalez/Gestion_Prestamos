@@ -2,7 +2,7 @@ from .client import ClienteCreate, ClienteRead, ClienteUpdate
 from .prestamo import PrestamoCreate, PrestamoRead
 from .cuota import CuotaRead, CuotaInput, CuotaUpdate
 from .pago import PagoCreate, PagoRead
-from .user import Token, TokenData, UserCredentials
+from .user import Token, UsuarioCreate, UsuarioRead, PasswordChange, PasswordReset
 
 __all__ = [
     "ClienteCreate",
@@ -16,6 +16,8 @@ __all__ = [
     "PagoCreate",
     "PagoRead",
     "Token",
-    "TokenData",
-    "UserCredentials",
+    "UsuarioCreate",
+    "UsuarioRead",
+    "PasswordChange",
+    "PasswordReset",
 ]
