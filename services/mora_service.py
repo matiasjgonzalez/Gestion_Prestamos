@@ -46,7 +46,7 @@ def obtener_cuotas_en_mora(
     """
     Retorna las cuotas en mora paginadas, con búsqueda por nombre de cliente.
     """
-    from models.cliente import Cliente
+    from models.client import Cliente
     hoy = date.today()
     q = (
         db.query(Cuota)
