@@ -134,6 +134,8 @@ export default function PrestamosPage() {
     if (submitting) return;
     if (!form.cliente_id) { toast.error('Seleccioná un cliente'); return; }
     if (!form.monto || !form.interes_total) { toast.error('Completá monto e interés'); return; }
+    if (parseFloat(form.monto) <= 0) { toast.error('El monto debe ser mayor a 0'); return; }
+    if (parseFloat(form.interes_total) < 0) { toast.error('El interés no puede ser negativo'); return; }
     if (numCuotas < 1) { toast.error('La cantidad de cuotas debe ser al menos 1'); return; }
     if (fechasCuotas.some((f) => !f)) { toast.error('Completá la fecha de todas las cuotas'); return; }
 
@@ -394,6 +396,7 @@ export default function PrestamosPage() {
                   type="number"
                   value={form.monto}
                   onChange={(e) => setForm((f) => ({ ...f, monto: e.target.value }))}
+                  min="1"
                   placeholder="100000"
                   required
                 />

@@ -130,8 +130,16 @@ export default function ClientesPage() {
     });
   };
 
+  const formatTelefono = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
   const handleChange = (field) => (e) => {
-    setForm((f) => ({ ...f, [field]: e.target.value }));
+    const value = field === 'telefono' ? formatTelefono(e.target.value) : e.target.value;
+    setForm((f) => ({ ...f, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
