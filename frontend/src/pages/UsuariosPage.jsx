@@ -150,89 +150,92 @@ export default function UsuariosPage() {
       </div>
 
       {/* Modal crear usuario */}
-      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nuevo usuario">
-        <form onSubmit={handleCreate}>
-          <div className="form-group">
-            <label>Nombre de usuario</label>
-            <input
-              className="form-control"
-              type="text"
-              value={createForm.username}
-              onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-              placeholder="ej: juan"
-              autoFocus
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Contraseña inicial</label>
-            <input
-              className="form-control"
-              type="password"
-              value={createForm.password}
-              onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-              placeholder="Mínimo 6 caracteres"
-              required
-            />
-            <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-              El usuario deberá cambiarla en su primer ingreso.
-            </small>
-          </div>
-          <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <input
-              type="checkbox"
-              id="is_admin"
-              checked={createForm.is_admin}
-              onChange={(e) => setCreateForm({ ...createForm, is_admin: e.target.checked })}
-              style={{ width: 16, height: 16, cursor: 'pointer' }}
-            />
-            <label htmlFor="is_admin" style={{ marginBottom: 0, cursor: 'pointer' }}>
-              Administrador
-            </label>
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button type="submit" className="btn btn-primary" disabled={creating}>
-              {creating ? 'Creando...' : 'Crear usuario'}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {showCreate && (
+        <Modal onClose={() => setShowCreate(false)} title="Nuevo usuario">
+          <form onSubmit={handleCreate}>
+            <div className="form-group">
+              <label>Nombre de usuario</label>
+              <input
+                className="form-control"
+                type="text"
+                value={createForm.username}
+                onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
+                placeholder="ej: juan"
+                autoFocus
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Contraseña inicial</label>
+              <input
+                className="form-control"
+                type="password"
+                value={createForm.password}
+                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                placeholder="Mínimo 6 caracteres"
+                required
+              />
+              <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                El usuario deberá cambiarla en su primer ingreso.
+              </small>
+            </div>
+            <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <input
+                type="checkbox"
+                id="is_admin"
+                checked={createForm.is_admin}
+                onChange={(e) => setCreateForm({ ...createForm, is_admin: e.target.checked })}
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+              <label htmlFor="is_admin" style={{ marginBottom: 0, cursor: 'pointer' }}>
+                Administrador
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button type="submit" className="btn btn-primary" disabled={creating}>
+                {creating ? 'Creando...' : 'Crear usuario'}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* Modal resetear contraseña */}
-      <Modal
-        isOpen={!!resetModal}
-        onClose={() => setResetModal(null)}
-        title={`Resetear contraseña — ${resetModal?.username}`}
-      >
-        <form onSubmit={handleReset}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>
-            El usuario deberá cambiar esta contraseña en su próximo ingreso.
-          </p>
-          <div className="form-group">
-            <label>Contraseña temporal</label>
-            <input
-              className="form-control"
-              type="text"
-              value={tempPassword}
-              onChange={(e) => setTempPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-              autoFocus
-              required
-            />
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button type="submit" className="btn btn-primary" disabled={resetting}>
-              {resetting ? 'Guardando...' : 'Restablecer'}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => setResetModal(null)}>
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {resetModal && (
+        <Modal
+          onClose={() => setResetModal(null)}
+          title={`Resetear contraseña — ${resetModal.username}`}
+        >
+          <form onSubmit={handleReset}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>
+              El usuario deberá cambiar esta contraseña en su próximo ingreso.
+            </p>
+            <div className="form-group">
+              <label>Contraseña temporal</label>
+              <input
+                className="form-control"
+                type="text"
+                value={tempPassword}
+                onChange={(e) => setTempPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                autoFocus
+                required
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button type="submit" className="btn btn-primary" disabled={resetting}>
+                {resetting ? 'Guardando...' : 'Restablecer'}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setResetModal(null)}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
