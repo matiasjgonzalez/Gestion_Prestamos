@@ -6,5 +6,5 @@ python-jose[cryptography]
 pydantic
 python-multipart
 psycopg2-binary
-passlib[bcrypt]
+bcrypt
 openpyxl
