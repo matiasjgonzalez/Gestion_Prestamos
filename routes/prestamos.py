@@ -55,7 +55,7 @@ def dashboard(
     )
     cuotas_por_estado = [{"estado": e, "cantidad": c} for e, c in estados_rows]
 
-    cuotas_mora = obtener_cuotas_en_mora(db)
+    mora_result = obtener_cuotas_en_mora(db, limit=100_000)
     return {
         "total_prestado": float(total_prestado),
         "total_cobrado": float(total_cobrado),
@@ -64,7 +64,7 @@ def dashboard(
         "clientes_con_prestamos": clientes_count,
         "prestamos_por_tipo": prestamos_por_tipo,
         "cuotas_por_estado": cuotas_por_estado,
-        "mora": {"total_en_mora": len(cuotas_mora), "cuotas": cuotas_mora},
+        "mora": {"total_en_mora": mora_result["total"], "cuotas": mora_result["cuotas"]},
     }
 
 
@@ -182,7 +182,7 @@ def marcar_cuota_pagada(
         .count()
     )
     if no_pagadas <= 1:  # la actual se está marcando
-        prestamo = db.query(Prestamo).get(prestamo_id)
+        prestamo = db.query(Prestamo).filter(Prestamo.id == prestamo_id).first()
         if prestamo:
             prestamo.estado = "finalizado"
             db.add(prestamo)
@@ -198,7 +198,7 @@ def cancelar_prestamo(
     _user=Depends(get_current_user),
 ):
     """Cancela el préstamo: marca todas las cuotas pendientes como pagadas."""
-    prestamo = db.query(Prestamo).get(prestamo_id)
+    prestamo = db.query(Prestamo).filter(Prestamo.id == prestamo_id).first()
     if not prestamo:
         raise HTTPException(status_code=404, detail="Préstamo no encontrado")
     if prestamo.estado == "finalizado":
@@ -315,20 +315,26 @@ def export_prestamos_xlsx(
 @router.get("/", response_model=list[PrestamoRead])
 def listar_prestamos(
     offset: int = 0,
-    limit: int = 20,
+    limit: int = 10,
     estado: Optional[str] = Query(None),
     cliente_id: Optional[int] = Query(None),
     tipo_prestamo: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    q = db.query(Prestamo)
+    q = db.query(Prestamo).join(Cliente, Prestamo.cliente_id == Cliente.id)
     if estado:
         q = q.filter(Prestamo.estado == estado)
     if cliente_id:
         q = q.filter(Prestamo.cliente_id == cliente_id)
     if tipo_prestamo:
         q = q.filter(Prestamo.tipo_prestamo == tipo_prestamo)
+    if search:
+        term = f"%{search.lower()}%"
+        q = q.filter(
+            (Cliente.nombre + " " + Cliente.apellido).ilike(term)
+        )
     return q.order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
 
 

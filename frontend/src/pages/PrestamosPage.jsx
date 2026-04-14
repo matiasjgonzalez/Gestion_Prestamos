@@ -35,6 +35,8 @@ export default function PrestamosPage() {
   const [pageSize] = useState(10);
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroCliente, setFiltroCliente] = useState('');
+  const debouncedFiltroCliente = useDebounce(filtroCliente, 300);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -51,7 +53,8 @@ export default function PrestamosPage() {
   const clienteRef = useRef(null);
   const fechaRef = useRef(null);
 
-  useEffect(() => { loadData(); }, [page, filtroEstado, filtroTipo]);
+  useEffect(() => { setPage(0); }, [filtroEstado, filtroTipo, debouncedFiltroCliente]);
+  useEffect(() => { loadData(); }, [page, filtroEstado, filtroTipo, debouncedFiltroCliente]);
 
   // Búsqueda lazy de clientes al tipear en el autocomplete
   useEffect(() => {
@@ -96,6 +99,7 @@ export default function PrestamosPage() {
       const params = { limit: pageSize, offset: p * pageSize };
       if (filtroEstado) params.estado = filtroEstado;
       if (filtroTipo) params.tipo_prestamo = filtroTipo;
+      if (debouncedFiltroCliente) params.search = debouncedFiltroCliente;
       const res = await getPrestamos(params);
       setPrestamos(res.data);
     } catch {
@@ -194,10 +198,20 @@ export default function PrestamosPage() {
 
       {/* Filtros */}
       <div className="filter-bar">
+        <div style={{ position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input
+            className="form-control filter-select"
+            style={{ paddingLeft: 32, minWidth: 200 }}
+            placeholder="Buscar cliente..."
+            value={filtroCliente}
+            onChange={(e) => setFiltroCliente(e.target.value)}
+          />
+        </div>
         <select
           className="form-control filter-select"
           value={filtroEstado}
-          onChange={(e) => { setFiltroEstado(e.target.value); setPage(0); }}
+          onChange={(e) => setFiltroEstado(e.target.value)}
         >
           <option value="">Todos los estados</option>
           <option value="activo">Activo</option>
@@ -206,15 +220,15 @@ export default function PrestamosPage() {
         <select
           className="form-control filter-select"
           value={filtroTipo}
-          onChange={(e) => { setFiltroTipo(e.target.value); setPage(0); }}
+          onChange={(e) => setFiltroTipo(e.target.value)}
         >
           <option value="">Todos los tipos</option>
           <option value="mensual">Mensual</option>
           <option value="quincenal">Quincenal</option>
           <option value="semanal">Semanal</option>
         </select>
-        {(filtroEstado || filtroTipo) && (
-          <button className="btn btn-secondary btn-sm" onClick={() => { setFiltroEstado(''); setFiltroTipo(''); setPage(0); }}>
+        {(filtroEstado || filtroTipo || filtroCliente) && (
+          <button className="btn btn-secondary btn-sm" onClick={() => { setFiltroEstado(''); setFiltroTipo(''); setFiltroCliente(''); }}>
             <X size={14} /> Limpiar
           </button>
         )}
