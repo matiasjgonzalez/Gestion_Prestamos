@@ -307,6 +307,7 @@ def listar_prestamos(
     limit: int = 20,
     estado: Optional[str] = Query(None),
     cliente_id: Optional[int] = Query(None),
+    tipo_prestamo: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _user: str = Depends(get_current_user),
 ):
@@ -315,6 +316,8 @@ def listar_prestamos(
         q = q.filter(Prestamo.estado == estado)
     if cliente_id:
         q = q.filter(Prestamo.cliente_id == cliente_id)
+    if tipo_prestamo:
+        q = q.filter(Prestamo.tipo_prestamo == tipo_prestamo)
     return q.order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
 
 

@@ -3,6 +3,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database import get_db
 from models.client import Cliente
+from models.prestamo import Prestamo
+from models.cuota import Cuota
+from models.pago import Pago
 from schemas.client import ClienteCreate, ClienteRead, ClienteUpdate
 from services.auth import get_current_user
 
@@ -42,7 +45,51 @@ def list_clientes(
             | (Cliente.dni.ilike(pattern))
             | (func.concat(Cliente.nombre, ' ', Cliente.apellido).ilike(pattern))
         )
-    return query.order_by(Cliente.apellido, Cliente.nombre).offset(offset).limit(limit).all()
+    clientes = query.order_by(Cliente.apellido, Cliente.nombre).offset(offset).limit(limit).all()
+
+    # IDs de clientes con mora en una sola query
+    ids_con_mora = set(
+        row[0] for row in db.query(Prestamo.cliente_id)
+        .join(Cuota, Cuota.prestamo_id == Prestamo.id)
+        .filter(Cuota.estado == "vencida")
+        .distinct()
+        .all()
+    )
+
+    result = []
+    for c in clientes:
+        item = ClienteRead.model_validate(c)
+        item.tiene_mora = c.id in ids_con_mora
+        result.append(item)
+    return result
+
+
+@router.get("/{cliente_id}/resumen")
+def get_cliente_resumen(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    _user: str = Depends(get_current_user),
+):
+    cliente = db.query(Cliente).get(cliente_id)
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+    prestamos = db.query(Prestamo).filter(Prestamo.cliente_id == cliente_id).all()
+    prestamo_ids = [p.id for p in prestamos]
+
+    total_cuotas = db.query(func.sum(Cuota.monto)).filter(Cuota.prestamo_id.in_(prestamo_ids)).scalar() or 0
+    total_pagado = db.query(func.sum(Pago.monto_pagado)).filter(Pago.prestamo_id.in_(prestamo_ids)).scalar() or 0
+    monto_mora = db.query(func.sum(Cuota.monto)).filter(
+        Cuota.prestamo_id.in_(prestamo_ids), Cuota.estado == "vencida"
+    ).scalar() or 0
+
+    return {
+        "prestamos_total": len(prestamos),
+        "prestamos_activos": sum(1 for p in prestamos if p.estado == "activo"),
+        "deuda_total": round(float(total_cuotas) - float(total_pagado), 2),
+        "tiene_mora": monto_mora > 0,
+        "monto_mora": float(monto_mora),
+    }
 
 
 @router.get("/{cliente_id}", response_model=ClienteRead)

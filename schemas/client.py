@@ -18,6 +18,7 @@ class ClienteCreate(ClienteBase):
 class ClienteRead(ClienteBase):
     id: int
     fecha_creacion: Optional[datetime] = None
+    tiene_mora: bool = False
 
     model_config = {"from_attributes": True}
 

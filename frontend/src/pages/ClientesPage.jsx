@@ -173,6 +173,7 @@ export default function ClientesPage() {
                   <th>DNI</th>
                   <th>Teléfono</th>
                   <th>Domicilio</th>
+                  <th>Mora</th>
                   <th style={{ width: 120 }}>Acciones</th>
                 </tr>
               </thead>
@@ -185,6 +186,11 @@ export default function ClientesPage() {
                     <td className="text-mono">{c.dni}</td>
                     <td>{c.telefono || '—'}</td>
                     <td>{c.domicilio || '—'}</td>
+                    <td>
+                      {c.tiene_mora
+                        ? <span className="badge badge-danger">En mora</span>
+                        : <span className="badge badge-success">Al día</span>}
+                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn-icon" title="Ver" onClick={() => navigate(`/clientes/${c.id}`)}>

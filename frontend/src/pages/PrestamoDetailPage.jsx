@@ -5,12 +5,13 @@ import {
   registrarPago,
   marcarCuotaPagada,
   cancelarPrestamo,
+  updateCuota,
   invalidateCache,
 } from '../services/api';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, Pencil } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
@@ -33,6 +34,7 @@ export default function PrestamoDetailPage() {
   const [pagoMonto, setPagoMonto] = useState('');
   const [pagoFecha, setPagoFecha] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
+  const [editCuota, setEditCuota] = useState(null); // {id, numero_cuota, fecha_vencimiento}
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -96,6 +98,22 @@ export default function PrestamoDetailPage() {
         }
       },
     });
+  };
+
+  const handleEditCuota = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await updateCuota(id, editCuota.id, { fecha_vencimiento: editCuota.fecha_vencimiento });
+      toast.success(`Fecha de cuota #${editCuota.numero_cuota} actualizada`);
+      setEditCuota(null);
+      reload();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al actualizar');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCancelar = () => {
@@ -211,7 +229,7 @@ export default function PrestamoDetailPage() {
               <th>Vencimiento</th>
               <th>Monto</th>
               <th>Estado</th>
-              {prestamo.estado === 'activo' && <th style={{ width: 80 }}>Acción</th>}
+              {prestamo.estado === 'activo' && <th style={{ width: 100 }}>Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -234,16 +252,27 @@ export default function PrestamoDetailPage() {
                 <td>{cuotaBadge(c.estado, parcial)}</td>
                 {prestamo.estado === 'activo' && (
                   <td>
-                    {c.estado !== 'pagada' && (
+                    <div style={{ display: 'flex', gap: 4 }}>
                       <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => handleMarcarCuota(c.id, c.numero_cuota)}
+                        className="btn-icon"
+                        title="Editar fecha"
+                        onClick={() => setEditCuota({ id: c.id, numero_cuota: c.numero_cuota, fecha_vencimiento: c.fecha_vencimiento })}
                         disabled={submitting}
-                        title="Marcar como pagada"
                       >
-                        <CheckCircle size={14} />
+                        <Pencil size={13} />
                       </button>
-                    )}
+                      {c.estado !== 'pagada' && (
+                        <button
+                          className="btn-icon"
+                          style={{ color: 'var(--success)' }}
+                          onClick={() => handleMarcarCuota(c.id, c.numero_cuota)}
+                          disabled={submitting}
+                          title="Marcar como pagada"
+                        >
+                          <CheckCircle size={13} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -293,6 +322,31 @@ export default function PrestamoDetailPage() {
           onConfirm={confirmModal.onConfirm}
           onCancel={() => setConfirmModal(null)}
         />
+      )}
+
+      {/* Modal editar cuota */}
+      {editCuota && (
+        <Modal title={`Editar Cuota #${editCuota.numero_cuota}`} onClose={() => setEditCuota(null)}>
+          <form onSubmit={handleEditCuota}>
+            <div className="form-group">
+              <label>Fecha de Vencimiento</label>
+              <input
+                className="form-control"
+                type="date"
+                value={editCuota.fecha_vencimiento}
+                onChange={(e) => setEditCuota((prev) => ({ ...prev, fecha_vencimiento: e.target.value }))}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditCuota(null)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Modal pago */}

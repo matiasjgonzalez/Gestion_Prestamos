@@ -33,6 +33,8 @@ export default function PrestamosPage() {
   const [clientesLoading, setClientesLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [pageSize] = useState(20);
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -49,7 +51,7 @@ export default function PrestamosPage() {
   const clienteRef = useRef(null);
   const fechaRef = useRef(null);
 
-  useEffect(() => { loadData(); }, [page]);
+  useEffect(() => { loadData(); }, [page, filtroEstado, filtroTipo]);
 
   // Búsqueda lazy de clientes al tipear en el autocomplete
   useEffect(() => {
@@ -91,7 +93,10 @@ export default function PrestamosPage() {
   const loadData = async (p = page) => {
     try {
       setLoading(true);
-      const res = await getPrestamos({ limit: pageSize, offset: p * pageSize });
+      const params = { limit: pageSize, offset: p * pageSize };
+      if (filtroEstado) params.estado = filtroEstado;
+      if (filtroTipo) params.tipo_prestamo = filtroTipo;
+      const res = await getPrestamos(params);
       setPrestamos(res.data);
     } catch {
       toast.error('Error al cargar préstamos');
@@ -177,6 +182,34 @@ export default function PrestamosPage() {
       <div className="page-header">
         <h2>Préstamos</h2>
         <button className="btn btn-primary" onClick={openCreate}><Plus size={16} />Nuevo Préstamo</button>
+      </div>
+
+      {/* Filtros */}
+      <div className="filter-bar">
+        <select
+          className="form-control filter-select"
+          value={filtroEstado}
+          onChange={(e) => { setFiltroEstado(e.target.value); setPage(0); }}
+        >
+          <option value="">Todos los estados</option>
+          <option value="activo">Activo</option>
+          <option value="finalizado">Finalizado</option>
+        </select>
+        <select
+          className="form-control filter-select"
+          value={filtroTipo}
+          onChange={(e) => { setFiltroTipo(e.target.value); setPage(0); }}
+        >
+          <option value="">Todos los tipos</option>
+          <option value="mensual">Mensual</option>
+          <option value="quincenal">Quincenal</option>
+          <option value="semanal">Semanal</option>
+        </select>
+        {(filtroEstado || filtroTipo) && (
+          <button className="btn btn-secondary btn-sm" onClick={() => { setFiltroEstado(''); setFiltroTipo(''); setPage(0); }}>
+            <X size={14} /> Limpiar
+          </button>
+        )}
       </div>
 
       {loading ? (

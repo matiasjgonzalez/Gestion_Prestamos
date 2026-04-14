@@ -112,6 +112,13 @@ export const cancelarPrestamo = (id) => {
   return api.post(`/prestamos/${id}/cancelar`);
 };
 
+export const updateCuota = (prestamoId, cuotaId, data) => {
+  invalidateCache('/prestamos');
+  return api.put(`/prestamos/${prestamoId}/cuotas/${cuotaId}`, data);
+};
+
+export const getClienteResumen = (id) => cachedGet(`/clientes/${id}/resumen`);
+
 // ─── Pagos ───
 export const registrarPago = (data) => {
   invalidateCache('/prestamos');
