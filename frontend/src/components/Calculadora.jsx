@@ -58,10 +58,15 @@ export default function Calculadora({ onClose }) {
         </div>
 
         {/* Inputs */}
+        <style>{`
+          .calc-input::-webkit-outer-spin-button,
+          .calc-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+          .calc-input { -moz-appearance: textfield; }
+        `}</style>
         <div className="form-group">
           <label>Monto del préstamo</label>
           <input
-            className="form-control"
+            className="form-control calc-input"
             type="number"
             placeholder="Ej: 100000"
             value={monto}
@@ -72,7 +77,7 @@ export default function Calculadora({ onClose }) {
         <div className="form-group">
           <label>Interés (%)</label>
           <input
-            className="form-control"
+            className="form-control calc-input"
             type="number"
             placeholder="Ej: 20"
             value={interes}
@@ -82,7 +87,7 @@ export default function Calculadora({ onClose }) {
         <div className="form-group">
           <label>Cantidad de cuotas</label>
           <input
-            className="form-control"
+            className="form-control calc-input"
             type="number"
             placeholder="Ej: 6"
             value={cuotas}
