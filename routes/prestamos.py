@@ -37,6 +37,23 @@ def dashboard(
     clientes_count = (
         db.query(sqlfunc.count(sqlfunc.distinct(Prestamo.cliente_id))).scalar() or 0
     )
+
+    # Préstamos por tipo
+    tipos_rows = (
+        db.query(Prestamo.tipo_prestamo, sqlfunc.count(Prestamo.id))
+        .group_by(Prestamo.tipo_prestamo)
+        .all()
+    )
+    prestamos_por_tipo = [{"tipo": t or "mensual", "cantidad": c} for t, c in tipos_rows]
+
+    # Cuotas por estado
+    estados_rows = (
+        db.query(Cuota.estado, sqlfunc.count(Cuota.id))
+        .group_by(Cuota.estado)
+        .all()
+    )
+    cuotas_por_estado = [{"estado": e, "cantidad": c} for e, c in estados_rows]
+
     cuotas_mora = obtener_cuotas_en_mora(db)
     return {
         "total_prestado": float(total_prestado),
@@ -44,6 +61,8 @@ def dashboard(
         "deuda_total": deuda_total,
         "prestamos_activos": prestamos_activos,
         "clientes_con_prestamos": clientes_count,
+        "prestamos_por_tipo": prestamos_por_tipo,
+        "cuotas_por_estado": cuotas_por_estado,
         "mora": {"total_en_mora": len(cuotas_mora), "cuotas": cuotas_mora},
     }
 
