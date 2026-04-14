@@ -43,7 +43,7 @@ def reset_password(
     db: Session = Depends(get_db),
     _admin=Depends(get_admin_user),
 ):
-    user = db.query(Usuario).get(user_id)
+    user = db.query(Usuario).filter(Usuario.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     user.hashed_password = hash_password(payload.temp_password)
@@ -59,7 +59,7 @@ def toggle_active(
     db: Session = Depends(get_db),
     admin=Depends(get_admin_user),
 ):
-    user = db.query(Usuario).get(user_id)
+    user = db.query(Usuario).filter(Usuario.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     if user.id == admin.id:
