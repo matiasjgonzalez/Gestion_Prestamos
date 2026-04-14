@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import Calculadora from './Calculadora';
 import {
   LayoutDashboard,
   Users,
@@ -10,6 +12,7 @@ import {
   Sun,
   Moon,
   ShieldCheck,
+  Calculator,
 } from 'lucide-react';
 
 const navItems = [
@@ -23,6 +26,7 @@ export default function Layout() {
   const { logout, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [showCalc, setShowCalc] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -61,6 +65,12 @@ export default function Layout() {
             </NavLink>
           )}
         </nav>
+        <div style={{ padding: '0 12px 8px' }}>
+          <button className="sidebar-link" onClick={() => setShowCalc(true)}>
+            <Calculator />
+            Calculadora
+          </button>
+        </div>
         <div className="sidebar-footer">
           <button className="theme-toggle" onClick={toggleTheme}>
             {theme === 'light' ? <Moon /> : <Sun />}
@@ -75,6 +85,7 @@ export default function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
+      {showCalc && <Calculadora onClose={() => setShowCalc(false)} />}
       <nav className="bottom-nav">
         {navItems.map((item) => (
           <NavLink
@@ -98,6 +109,10 @@ export default function Layout() {
             <span>Usuarios</span>
           </NavLink>
         )}
+        <button className="bottom-nav-item" onClick={() => setShowCalc(true)}>
+          <Calculator size={22} />
+          <span>Calc</span>
+        </button>
         <button className="bottom-nav-item" onClick={toggleTheme}>
           {theme === 'light' ? <Moon size={22} /> : <Sun size={22} />}
           <span>{theme === 'light' ? 'Oscuro' : 'Claro'}</span>
