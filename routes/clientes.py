@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_, and_
+from datetime import date
 from database import get_db
 from models.client import Cliente
 from models.prestamo import Prestamo
@@ -47,11 +48,16 @@ def list_clientes(
         )
     clientes = query.order_by(Cliente.apellido, Cliente.nombre).offset(offset).limit(limit).all()
 
-    # IDs de clientes con mora en una sola query
+    # IDs de clientes con mora: ya marcadas como "vencida" O pendientes con fecha pasada
     ids_con_mora = set(
         row[0] for row in db.query(Prestamo.cliente_id)
         .join(Cuota, Cuota.prestamo_id == Prestamo.id)
-        .filter(Cuota.estado == "vencida")
+        .filter(
+            or_(
+                Cuota.estado == "vencida",
+                and_(Cuota.estado == "pendiente", Cuota.fecha_vencimiento < date.today())
+            )
+        )
         .distinct()
         .all()
     )
@@ -80,7 +86,11 @@ def get_cliente_resumen(
     total_cuotas = db.query(func.sum(Cuota.monto)).filter(Cuota.prestamo_id.in_(prestamo_ids)).scalar() or 0
     total_pagado = db.query(func.sum(Pago.monto_pagado)).filter(Pago.prestamo_id.in_(prestamo_ids)).scalar() or 0
     monto_mora = db.query(func.sum(Cuota.monto)).filter(
-        Cuota.prestamo_id.in_(prestamo_ids), Cuota.estado == "vencida"
+        Cuota.prestamo_id.in_(prestamo_ids),
+        or_(
+            Cuota.estado == "vencida",
+            and_(Cuota.estado == "pendiente", Cuota.fecha_vencimiento < date.today())
+        )
     ).scalar() or 0
 
     return {
