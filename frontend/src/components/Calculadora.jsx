@@ -31,13 +31,15 @@ export default function Calculadora({ onClose }) {
     >
       <div
         style={{
-          background: 'var(--surface)',
+          background: 'var(--bg)',
           border: '1px solid var(--border)',
           borderRadius: 12,
           width: '100%',
           maxWidth: 420,
           padding: '28px 28px 24px',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+          position: 'relative',
+          zIndex: 1001,
         }}
         onClick={(e) => e.stopPropagation()}
       >
