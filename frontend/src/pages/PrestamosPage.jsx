@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPrestamos, getClientes, createPrestamo, deletePrestamo } from '../services/api';
+import { useDebounce } from '../utils/helpers';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
@@ -29,6 +30,7 @@ function addInterval(dateStr, tipo, n) {
 export default function PrestamosPage() {
   const [prestamos, setPrestamos] = useState([]);
   const [clientes, setClientes] = useState([]);
+  const [clientesLoading, setClientesLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
@@ -42,11 +44,22 @@ export default function PrestamosPage() {
   const [fechasCuotas, setFechasCuotas] = useState(['']);
   const [confirmModal, setConfirmModal] = useState(null);
   const [clienteSearch, setClienteSearch] = useState('');
+  const debouncedClienteSearch = useDebounce(clienteSearch, 300);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const clienteRef = useRef(null);
   const fechaRef = useRef(null);
 
   useEffect(() => { loadData(); }, [page]);
+
+  // Búsqueda lazy de clientes al tipear en el autocomplete
+  useEffect(() => {
+    if (!debouncedClienteSearch || form.cliente_id) return;
+    setClientesLoading(true);
+    getClientes(debouncedClienteSearch, { limit: 8, offset: 0 })
+      .then((r) => setClientes(r.data))
+      .catch(() => {})
+      .finally(() => setClientesLoading(false));
+  }, [debouncedClienteSearch]);
 
   // Cerrar dropdown al click fuera
   useEffect(() => {
@@ -75,28 +88,13 @@ export default function PrestamosPage() {
     );
   }, [form.fecha_inicio, numCuotas, form.tipo_prestamo]);
 
-  const filteredClientes = clientes.filter((c) => {
-    const q = clienteSearch.toLowerCase();
-    return (
-      c.nombre.toLowerCase().includes(q) ||
-      c.apellido.toLowerCase().includes(q) ||
-      `${c.nombre} ${c.apellido}`.toLowerCase().includes(q) ||
-      c.dni.includes(q)
-    );
-  }).slice(0, 8);
-
   const loadData = async (p = page) => {
     try {
       setLoading(true);
-      const offset = p * pageSize;
-      const [pRes, cRes] = await Promise.all([
-        getPrestamos({ limit: pageSize, offset }),
-        getClientes('', { limit: 1000, offset: 0 }),
-      ]);
-      setPrestamos(pRes.data);
-      setClientes(cRes.data);
+      const res = await getPrestamos({ limit: pageSize, offset: p * pageSize });
+      setPrestamos(res.data);
     } catch {
-      toast.error('Error al cargar datos');
+      toast.error('Error al cargar préstamos');
     } finally {
       setLoading(false);
     }
@@ -107,6 +105,7 @@ export default function PrestamosPage() {
     setNumCuotasStr('1');
     setFechasCuotas(['']);
     setClienteSearch('');
+    setClientes([]);
     setShowClientDropdown(false);
     setShowModal(true);
   };
@@ -265,7 +264,10 @@ export default function PrestamosPage() {
                       onChange={(e) => {
                         setClienteSearch(e.target.value);
                         setShowClientDropdown(true);
-                        if (!e.target.value) setForm((f) => ({ ...f, cliente_id: '' }));
+                        if (!e.target.value) {
+                          setForm((f) => ({ ...f, cliente_id: '' }));
+                          setClientes([]);
+                        }
                       }}
                       onFocus={() => setShowClientDropdown(true)}
                       autoComplete="off"
@@ -281,10 +283,12 @@ export default function PrestamosPage() {
                   </div>
                   {showClientDropdown && clienteSearch && (
                     <div className="cliente-dropdown">
-                      {filteredClientes.length === 0 ? (
+                      {clientesLoading ? (
+                        <div className="cliente-dropdown-empty">Buscando...</div>
+                      ) : clientes.length === 0 ? (
                         <div className="cliente-dropdown-empty">Sin resultados para "{clienteSearch}"</div>
                       ) : (
-                        filteredClientes.map((c) => (
+                        clientes.map((c) => (
                           <button
                             type="button"
                             key={c.id}

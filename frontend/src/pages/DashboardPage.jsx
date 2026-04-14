@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getDashboard } from '../services/api';
 import { useNavigate } from 'react-router-dom';
-import {
-  DollarSign, TrendingUp, AlertTriangle, Banknote, Users,
-} from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 import {
@@ -89,8 +87,8 @@ export default function DashboardPage() {
     try {
       const res = await getDashboard();
       setData(res.data);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // silently fail — dashboard is non-critical
     } finally {
       setLoading(false);
     }
@@ -108,11 +106,11 @@ export default function DashboardPage() {
   const moraData = data.mora;
 
   const stats = [
-    { label: 'Total Prestado',       value: formatMoney(data.total_prestado),  icon: DollarSign,   colorClass: '' },
-    { label: 'Total Cobrado',        value: formatMoney(data.total_cobrado),   icon: TrendingUp,   colorClass: 'success' },
-    { label: 'Deuda Total',          value: formatMoney(data.deuda_total),     icon: Banknote,     colorClass: 'accent' },
-    { label: 'Préstamos Activos',    value: data.prestamos_activos,            icon: Banknote,     colorClass: '' },
-    { label: 'Clientes c/ Préstamos',value: data.clientes_con_prestamos,       icon: Users,        colorClass: '' },
+    { label: 'Total Prestado',        value: formatMoney(data.total_prestado), colorClass: '' },
+    { label: 'Total Cobrado',         value: formatMoney(data.total_cobrado),  colorClass: 'success' },
+    { label: 'Deuda Total',           value: formatMoney(data.deuda_total),    colorClass: 'accent' },
+    { label: 'Préstamos Activos',     value: data.prestamos_activos,           colorClass: '' },
+    { label: 'Clientes c/ Préstamos', value: data.clientes_con_prestamos,      colorClass: '' },
   ];
 
   // Donut cobrado vs pendiente
