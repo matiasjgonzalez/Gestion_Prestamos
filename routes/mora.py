@@ -25,13 +25,16 @@ def verificar(
 
 @router.get("/")
 def listar_mora(
+    search: str = "",
+    limit: int = 10,
+    offset: int = 0,
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    cuotas = obtener_cuotas_en_mora(db)
+    result = obtener_cuotas_en_mora(db, search=search, limit=limit, offset=offset)
     return {
-        "total_en_mora": len(cuotas),
-        "cuotas": cuotas,
+        "total_en_mora": result["total"],
+        "cuotas": result["cuotas"],
     }
 
 
@@ -40,7 +43,8 @@ def export_mora_xlsx(
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    cuotas = obtener_cuotas_en_mora(db)
+    result = obtener_cuotas_en_mora(db, limit=100_000)
+    cuotas = result["cuotas"]
 
     wb = openpyxl.Workbook()
     ws = wb.active

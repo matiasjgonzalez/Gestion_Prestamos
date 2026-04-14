@@ -37,19 +37,32 @@ def verificar_mora(db: Session) -> list[dict]:
     ]
 
 
-def obtener_cuotas_en_mora(db: Session) -> list[dict]:
+def obtener_cuotas_en_mora(
+    db: Session,
+    search: str = "",
+    limit: int = 10,
+    offset: int = 0,
+) -> dict:
     """
-    Retorna las cuotas en mora con datos del cliente en una sola query (JOIN).
+    Retorna las cuotas en mora paginadas, con búsqueda por nombre de cliente.
     """
+    from models.cliente import Cliente
     hoy = date.today()
-    cuotas = (
+    q = (
         db.query(Cuota)
         .options(joinedload(Cuota.prestamo).joinedload(Prestamo.cliente))
+        .join(Cuota.prestamo)
+        .join(Prestamo.cliente)
         .filter(Cuota.estado == "vencida")
-        .order_by(Cuota.fecha_vencimiento)
-        .all()
     )
-    return [
+    if search:
+        term = f"%{search.lower()}%"
+        q = q.filter(
+            (Cliente.nombre + " " + Cliente.apellido).ilike(term)
+        )
+    total = q.count()
+    cuotas = q.order_by(Cuota.fecha_vencimiento).offset(offset).limit(limit).all()
+    items = [
         {
             "cuota_id": c.id,
             "prestamo_id": c.prestamo_id,
@@ -62,3 +75,4 @@ def obtener_cuotas_en_mora(db: Session) -> list[dict]:
         }
         for c in cuotas
     ]
+    return {"total": total, "cuotas": items}

@@ -32,7 +32,7 @@ export default function PrestamosPage() {
   const [clientes, setClientes] = useState([]);
   const [clientesLoading, setClientesLoading] = useState(false);
   const [page, setPage] = useState(0);
-  const [pageSize] = useState(20);
+  const [pageSize] = useState(10);
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [loading, setLoading] = useState(true);
@@ -250,12 +250,12 @@ export default function PrestamosPage() {
               </tbody>
             </table>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-            <div>
-              <button className="btn btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>Anterior</button>
-              <button className="btn btn-sm" onClick={() => setPage((p) => p + 1)} style={{ marginLeft: 8 }}>Siguiente</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>Anterior</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setPage((p) => p + 1)} disabled={prestamos.length < pageSize}>Siguiente</button>
             </div>
-            <div className="text-sm">Página {page + 1}</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Página {page + 1}</div>
           </div>
         </>
       )}

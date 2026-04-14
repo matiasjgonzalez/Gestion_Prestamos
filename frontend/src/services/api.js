@@ -168,6 +168,6 @@ export const verificarMora = () => {
   return api.post('/mora/verificar');
 };
 
-export const getMora = () => cachedGet('/mora/');
+export const getMora = (params = {}) => cachedGet('/mora/', params);
 
 export default api;
