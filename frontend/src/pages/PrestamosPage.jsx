@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getPrestamos, getClientes, createPrestamo, deletePrestamo } from '../services/api';
+import { getPrestamos, getClientes, createPrestamo, deletePrestamo, downloadExcel } from '../services/api';
 import { useDebounce } from '../utils/helpers';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Eye, Banknote, Calendar, Search, X } from 'lucide-react';
+import { Plus, Trash2, Eye, Banknote, Calendar, Search, X, Download } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
 
@@ -181,7 +181,15 @@ export default function PrestamosPage() {
     <div>
       <div className="page-header">
         <h2>Préstamos</h2>
-        <button className="btn btn-primary" onClick={openCreate}><Plus size={16} />Nuevo Préstamo</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => downloadExcel('/prestamos/export/xlsx', 'prestamos.xlsx')}
+          >
+            <Download size={16} />Exportar Excel
+          </button>
+          <button className="btn btn-primary" onClick={openCreate}><Plus size={16} />Nuevo Préstamo</button>
+        </div>
       </div>
 
       {/* Filtros */}

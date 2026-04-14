@@ -17,7 +17,7 @@ router = APIRouter()
 def create_cliente(
     payload: ClienteCreate,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     existente = db.query(Cliente).filter(Cliente.dni == payload.dni).first()
     if existente:
@@ -35,7 +35,7 @@ def list_clientes(
     limit: int = 100,
     search: str = Query(None, description="Buscar por nombre, apellido o DNI"),
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     query = db.query(Cliente)
     if search:
@@ -74,7 +74,7 @@ def list_clientes(
 def get_cliente_resumen(
     cliente_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     cliente = db.query(Cliente).get(cliente_id)
     if not cliente:
@@ -106,7 +106,7 @@ def get_cliente_resumen(
 def get_cliente(
     cliente_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     cliente = db.query(Cliente).get(cliente_id)
     if not cliente:
@@ -119,7 +119,7 @@ def update_cliente(
     cliente_id: int,
     payload: ClienteUpdate,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     cliente = db.query(Cliente).get(cliente_id)
     if not cliente:
@@ -136,7 +136,7 @@ def update_cliente(
 def delete_cliente(
     cliente_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     cliente = db.query(Cliente).get(cliente_id)
     if not cliente:

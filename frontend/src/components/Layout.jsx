@@ -9,6 +9,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  ShieldCheck,
 } from 'lucide-react';
 
 const navItems = [
@@ -19,7 +20,7 @@ const navItems = [
 ];
 
 export default function Layout() {
-  const { logout } = useAuth();
+  const { logout, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -50,6 +51,15 @@ export default function Layout() {
               {item.label}
             </NavLink>
           ))}
+          {isAdmin && (
+            <NavLink
+              to="/usuarios"
+              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            >
+              <ShieldCheck />
+              Usuarios
+            </NavLink>
+          )}
         </nav>
         <div className="sidebar-footer">
           <button className="theme-toggle" onClick={toggleTheme}>
@@ -79,6 +89,15 @@ export default function Layout() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+        {isAdmin && (
+          <NavLink
+            to="/usuarios"
+            className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}
+          >
+            <ShieldCheck size={22} />
+            <span>Usuarios</span>
+          </NavLink>
+        )}
         <button className="bottom-nav-item" onClick={toggleTheme}>
           {theme === 'light' ? <Moon size={22} /> : <Sun size={22} />}
           <span>{theme === 'light' ? 'Oscuro' : 'Claro'}</span>

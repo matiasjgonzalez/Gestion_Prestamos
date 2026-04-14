@@ -8,12 +8,17 @@ print(f"PORT: {os.environ.get('PORT', 'NOT SET')}", flush=True)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from database import engine, Base
-from routes import auth, clientes, prestamos, pagos, mora
+from sqlalchemy.orm import Session
+from database import engine, Base, SessionLocal
+from routes import auth, clientes, prestamos, pagos, mora, usuarios
 from contextlib import asynccontextmanager
 
 import models  # noqa: F401
 
+
+_MIGRATE_SQL = [
+    "ALTER TABLE prestamos ADD COLUMN IF NOT EXISTS tipo_prestamo VARCHAR(20) NOT NULL DEFAULT 'mensual'",
+]
 
 _INDEX_SQL = [
     "CREATE INDEX IF NOT EXISTS ix_prestamos_estado ON prestamos (estado)",
@@ -22,9 +27,22 @@ _INDEX_SQL = [
     "CREATE INDEX IF NOT EXISTS ix_cuotas_estado_fecha ON cuotas (estado, fecha_vencimiento)",
 ]
 
-_MIGRATE_SQL = [
-    "ALTER TABLE prestamos ADD COLUMN IF NOT EXISTS tipo_prestamo VARCHAR(20) NOT NULL DEFAULT 'mensual'",
-]
+
+def _seed_admin(db: Session):
+    from models.usuario import Usuario
+    from services.auth import hash_password
+    if db.query(Usuario).count() == 0:
+        username = os.getenv("ADMIN_USER", "admin")
+        password = os.getenv("ADMIN_PASSWORD", "admin123")
+        admin = Usuario(
+            username=username,
+            hashed_password=hash_password(password),
+            is_admin=True,
+            must_change_password=False,
+        )
+        db.add(admin)
+        db.commit()
+        print(f"Admin user '{username}' created.", flush=True)
 
 
 @asynccontextmanager
@@ -35,7 +53,12 @@ async def lifespan(app: FastAPI):
         for sql in _MIGRATE_SQL + _INDEX_SQL:
             conn.execute(text(sql))
         conn.commit()
-    print("Tables created OK", flush=True)
+    db = SessionLocal()
+    try:
+        _seed_admin(db)
+    finally:
+        db.close()
+    print("Startup OK", flush=True)
     yield
 
 
@@ -54,6 +77,7 @@ app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
 app.include_router(prestamos.router, prefix="/prestamos", tags=["Préstamos"])
 app.include_router(pagos.router, prefix="/pagos", tags=["Pagos"])
 app.include_router(mora.router, prefix="/mora", tags=["Mora"])
+app.include_router(usuarios.router, prefix="/usuarios", tags=["Usuarios"])
 
 
 @app.get("/")

@@ -17,9 +17,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await login(username, password);
-      saveToken(res.data.access_token);
+      saveToken(res.data.access_token, res.data.must_change_password, res.data.is_admin);
       toast.success('Bienvenido');
-      navigate('/');
+      navigate(res.data.must_change_password ? '/cambiar-password' : '/');
     } catch {
       toast.error('Credenciales inválidas');
     } finally {

@@ -119,6 +119,43 @@ export const updateCuota = (prestamoId, cuotaId, data) => {
 
 export const getClienteResumen = (id) => cachedGet(`/clientes/${id}/resumen`);
 
+// ─── Usuarios ───
+export const getUsuarios = () => cachedGet('/usuarios/');
+
+export const createUsuario = (data) => {
+  invalidateCache('/usuarios');
+  return api.post('/usuarios/', data);
+};
+
+export const resetPasswordUsuario = (id, temp_password) => {
+  invalidateCache('/usuarios');
+  return api.put(`/usuarios/${id}/reset-password`, { temp_password });
+};
+
+export const toggleActiveUsuario = (id) => {
+  invalidateCache('/usuarios');
+  return api.put(`/usuarios/${id}/toggle-active`);
+};
+
+export const changePassword = (new_password) =>
+  api.post('/usuarios/change-password', { new_password });
+
+export const getMe = () => api.get('/auth/me');
+
+// ─── Export Excel ───
+export async function downloadExcel(url, filename) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}${url}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const blob = await res.blob();
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 // ─── Pagos ───
 export const registrarPago = (data) => {
   invalidateCache('/prestamos');

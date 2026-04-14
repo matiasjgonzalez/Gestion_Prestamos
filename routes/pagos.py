@@ -15,7 +15,7 @@ router = APIRouter()
 def registrar_pago(
     payload: PagoCreate,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     prestamo = db.query(Prestamo).get(payload.prestamo_id)
     if not prestamo:
@@ -90,7 +90,7 @@ def registrar_pago(
 def listar_pagos(
     prestamo_id: int = None,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     query = db.query(Pago)
     if prestamo_id:

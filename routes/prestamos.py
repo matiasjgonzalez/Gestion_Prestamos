@@ -1,5 +1,6 @@
-import csv
 import io
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional
@@ -23,7 +24,7 @@ router = APIRouter()
 @router.get("/dashboard")
 def dashboard(
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     total_prestado = db.query(sqlfunc.sum(Prestamo.monto)).scalar() or 0
     total_cobrado = db.query(sqlfunc.sum(Pago.monto_pagado)).scalar() or 0
@@ -71,7 +72,7 @@ def dashboard(
 def detalle_completo(
     prestamo_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     prestamo = (
         db.query(Prestamo)
@@ -149,7 +150,7 @@ def marcar_cuota_pagada(
     prestamo_id: int,
     cuota_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     """Marca una cuota individual como pagada y registra el pago."""
     cuota = (
@@ -194,7 +195,7 @@ def marcar_cuota_pagada(
 def cancelar_prestamo(
     prestamo_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     """Cancela el préstamo: marca todas las cuotas pendientes como pagadas."""
     prestamo = db.query(Prestamo).get(prestamo_id)
@@ -242,7 +243,7 @@ def cancelar_prestamo(
 def crear_prestamo(
     payload: PrestamoCreate,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     if len(payload.cuotas_detalle) != payload.cuotas:
         raise HTTPException(
@@ -262,42 +263,52 @@ def crear_prestamo(
     return prestamo
 
 
-@router.get("/export/csv")
-def export_prestamos_csv(
+@router.get("/export/xlsx")
+def export_prestamos_xlsx(
     estado: Optional[str] = Query(None),
     cliente_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
-    q = (
-        db.query(Prestamo, Cliente)
-        .join(Cliente, Prestamo.cliente_id == Cliente.id)
-    )
+    q = db.query(Prestamo, Cliente).join(Cliente, Prestamo.cliente_id == Cliente.id)
     if estado:
         q = q.filter(Prestamo.estado == estado)
     if cliente_id:
         q = q.filter(Prestamo.cliente_id == cliente_id)
     rows = q.order_by(Prestamo.id.desc()).all()
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["ID", "Cliente", "DNI", "Monto", "Interés (%)", "Cuotas", "Fecha Inicio", "Estado"])
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Préstamos"
+
+    headers = ["ID", "Cliente", "DNI", "Tipo", "Monto", "Interés (%)", "Cuotas", "Fecha Inicio", "Estado"]
+    header_fill = PatternFill("solid", fgColor="0284C7")
+    header_font = Font(bold=True, color="FFFFFF")
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+
     for p, c in rows:
-        writer.writerow([
-            p.id,
-            f"{c.nombre} {c.apellido}",
-            c.dni,
-            float(p.monto),
-            p.interes_total,
-            p.cuotas,
+        ws.append([
+            p.id, f"{c.nombre} {c.apellido}", c.dni,
+            p.tipo_prestamo or "mensual",
+            float(p.monto), p.interes_total, p.cuotas,
             p.fecha_inicio.isoformat() if p.fecha_inicio else "",
             p.estado,
         ])
+
+    for col in ws.columns:
+        ws.column_dimensions[col[0].column_letter].width = max(len(str(c.value or "")) for c in col) + 4
+
+    output = io.BytesIO()
+    wb.save(output)
     output.seek(0)
     return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=prestamos.csv"},
+        iter([output.read()]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=prestamos.xlsx"},
     )
 
 
@@ -309,7 +320,7 @@ def listar_prestamos(
     cliente_id: Optional[int] = Query(None),
     tipo_prestamo: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     q = db.query(Prestamo)
     if estado:
@@ -325,7 +336,7 @@ def listar_prestamos(
 def obtener_prestamo(
     prestamo_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     p = db.query(Prestamo).filter(Prestamo.id == prestamo_id).first()
     if not p:
@@ -337,7 +348,7 @@ def obtener_prestamo(
 def deuda_prestamo(
     prestamo_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     p = db.query(Prestamo).get(prestamo_id)
     if not p:
@@ -350,7 +361,7 @@ def deuda_prestamo(
 def listar_cuotas(
     prestamo_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     p = db.query(Prestamo).get(prestamo_id)
     if not p:
@@ -364,7 +375,7 @@ def actualizar_cuota(
     cuota_id: int,
     payload: CuotaUpdate,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     cuota = db.query(Cuota).filter(Cuota.id == cuota_id, Cuota.prestamo_id == prestamo_id).first()
     if not cuota:
@@ -383,7 +394,7 @@ def actualizar_cuota(
 def eliminar_prestamo(
     prestamo_id: int,
     db: Session = Depends(get_db),
-    _user: str = Depends(get_current_user),
+    _user=Depends(get_current_user),
 ):
     p = db.query(Prestamo).get(prestamo_id)
     if not p:

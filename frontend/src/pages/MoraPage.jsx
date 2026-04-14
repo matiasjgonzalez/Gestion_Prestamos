@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { verificarMora, getMora } from '../services/api';
+import { verificarMora, getMora, downloadExcel } from '../services/api';
 import toast from 'react-hot-toast';
 import { AlertTriangle, RefreshCw, Download } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function MoraPage() {
   const [cuotas, setCuotas] = useState([]);
@@ -68,13 +66,12 @@ export default function MoraPage() {
           Mora
         </h2>
         <div style={{ display: 'flex', gap: 8 }}>
-          <a
-            href={`${API_URL}/mora/export/csv`}
+          <button
             className="btn btn-secondary"
-            download
+            onClick={() => downloadExcel('/mora/export/xlsx', 'mora.xlsx')}
           >
-            <Download size={16} />Exportar CSV
-          </a>
+            <Download size={16} />Exportar Excel
+          </button>
           <button
             className="btn btn-secondary"
             onClick={handleRefresh}
