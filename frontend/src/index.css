@@ -875,6 +875,36 @@ select.form-control { cursor: pointer; }
   font-weight: 700;
   color: var(--text-primary);
 }
+.chart-tooltip-pct {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+.chart-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.chart-legend-name {
+  color: var(--text-secondary);
+  flex: 1;
+}
+.chart-legend-count {
+  font-weight: 600;
+  color: var(--text-primary);
+}
 
 /* ─── Bottom navigation (mobile) ─── */
 .bottom-nav {

@@ -28,12 +28,52 @@ function CustomTooltipMoney({ active, payload }) {
   );
 }
 
+function CustomTooltipCuotas({ active, payload, total }) {
+  if (!active || !payload?.length) return null;
+  const pct = total > 0 ? Math.round((payload[0].value / total) * 100) : 0;
+  return (
+    <div className="chart-tooltip">
+      <span className="chart-tooltip-label">{payload[0].name}</span>
+      <span className="chart-tooltip-value">{payload[0].value} de {total}</span>
+      <span className="chart-tooltip-pct">{pct}%</span>
+    </div>
+  );
+}
+
 function CustomTooltipCount({ active, payload }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="chart-tooltip">
-      <span className="chart-tooltip-label">{payload[0].name ?? payload[0].payload?.tipo ?? payload[0].payload?.estado}</span>
+      <span className="chart-tooltip-label">{payload[0].payload?.tipo ?? payload[0].name}</span>
       <span className="chart-tooltip-value">{payload[0].value} préstamos</span>
+    </div>
+  );
+}
+
+function DonutCenter({ cx, cy, total }) {
+  return (
+    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+      <tspan x={cx} dy="-8" style={{ fontSize: 22, fontWeight: 700, fill: 'var(--text-primary)' }}>
+        {total}
+      </tspan>
+      <tspan x={cx} dy="22" style={{ fontSize: 11, fill: 'var(--text-muted)' }}>
+        total
+      </tspan>
+    </text>
+  );
+}
+
+function renderEstadoLegend(estadosData, total) {
+  const colorMap = { Pagadas: '#16A34A', Pendientes: '#D97706', Vencidas: '#E11D48' };
+  return (
+    <div className="chart-legend">
+      {estadosData.map((e) => (
+        <div key={e.name} className="chart-legend-item">
+          <span className="chart-legend-dot" style={{ background: colorMap[e.name] }} />
+          <span className="chart-legend-name">{e.name}</span>
+          <span className="chart-legend-count">{e.value} de {total}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -82,10 +122,10 @@ export default function DashboardPage() {
   ];
 
   // Donut cuotas por estado
-  const estadosData = (data.cuotas_por_estado || []).map((r) => ({
-    name: ESTADO_LABEL[r.estado] ?? r.estado,
-    value: r.cantidad,
-  }));
+  const estadosData = (data.cuotas_por_estado || [])
+    .sort((a, b) => ['pagada','pendiente','vencida'].indexOf(a.estado) - ['pagada','pendiente','vencida'].indexOf(b.estado))
+    .map((r) => ({ name: ESTADO_LABEL[r.estado] ?? r.estado, value: r.cantidad }));
+  const totalCuotas = estadosData.reduce((s, r) => s + r.value, 0);
 
   // Barras préstamos por tipo
   const tiposData = (data.prestamos_por_tipo || []).map((r) => ({
@@ -140,26 +180,32 @@ export default function DashboardPage() {
           {estadosData.length === 0 ? (
             <div className="chart-empty">Sin datos</div>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={estadosData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {estadosData.map((entry, i) => {
-                    const colorMap = { Pagadas: '#16A34A', Pendientes: '#D97706', Vencidas: '#E11D48' };
-                    return <Cell key={i} fill={colorMap[entry.name] ?? COLORS_ESTADO[i % 3]} />;
-                  })}
-                </Pie>
-                <Tooltip formatter={(value) => [`${value} cuotas`, '']} />
-                <Legend iconType="circle" iconSize={10} />
-              </PieChart>
-            </ResponsiveContainer>
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={estadosData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={58}
+                    outerRadius={85}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {estadosData.map((entry, i) => {
+                      const colorMap = { Pagadas: '#16A34A', Pendientes: '#D97706', Vencidas: '#E11D48' };
+                      return <Cell key={i} fill={colorMap[entry.name] ?? COLORS_ESTADO[i % 3]} />;
+                    })}
+                  </Pie>
+                  <Tooltip content={<CustomTooltipCuotas total={totalCuotas} />} />
+                  <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                    <tspan x="50%" dy="-8" style={{ fontSize: 22, fontWeight: 700, fill: 'var(--text-primary)' }}>{totalCuotas}</tspan>
+                    <tspan x="50%" dy="22" style={{ fontSize: 11, fill: 'var(--text-muted)' }}>total</tspan>
+                  </text>
+                </PieChart>
+              </ResponsiveContainer>
+              {renderEstadoLegend(estadosData, totalCuotas)}
+            </>
           )}
         </div>
 
