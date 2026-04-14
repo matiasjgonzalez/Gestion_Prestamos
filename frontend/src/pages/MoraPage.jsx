@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { verificarMora, getMora } from '../services/api';
 import toast from 'react-hot-toast';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Download } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function MoraPage() {
   const [cuotas, setCuotas] = useState([]);
@@ -65,14 +67,23 @@ export default function MoraPage() {
           />
           Mora
         </h2>
-        <button
-          className="btn btn-secondary"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCw size={16} className={refreshing ? 'spinning' : ''} />
-          {refreshing ? 'Verificando...' : 'Verificar Mora'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a
+            href={`${API_URL}/mora/export/csv`}
+            className="btn btn-secondary"
+            download
+          >
+            <Download size={16} />Exportar CSV
+          </a>
+          <button
+            className="btn btn-secondary"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw size={16} className={refreshing ? 'spinning' : ''} />
+            {refreshing ? 'Verificando...' : 'Verificar Mora'}
+          </button>
+        </div>
       </div>
 
       {totalMora > 0 && (
@@ -114,7 +125,7 @@ export default function MoraPage() {
                 .map((c) => (
                   <tr key={c.cuota_id}>
                     <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {c.cliente_nombre} {c.cliente_apellido}
+                      {c.cliente_nombre}
                     </td>
                     <td className="text-mono">#{c.prestamo_id}</td>
                     <td className="text-mono">#{c.numero_cuota}</td>

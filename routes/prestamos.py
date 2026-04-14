@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+import csv
+import io
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from typing import Optional
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func as sqlfunc
 from database import get_db
@@ -67,6 +71,27 @@ def detalle_completo(
     deuda = round(total_cuotas - total_pagado, 2)
     cuotas_sorted = sorted(prestamo.cuotas_rel, key=lambda c: c.numero_cuota)
     pagos_sorted = sorted(prestamo.pagos, key=lambda p: p.fecha_pago, reverse=True)
+
+    # Compute monto_efectivo: unattributed surplus reduces the first unpaid cuota
+    sum_pagadas = sum(float(c.monto) for c in cuotas_sorted if c.estado == "pagada")
+    surplus = max(0.0, total_pagado - sum_pagadas)
+    cuotas_data = []
+    for c in cuotas_sorted:
+        c_monto = float(c.monto)
+        if c.estado == "pagada":
+            efectivo = 0.0
+        elif surplus > 0:
+            efectivo = max(0.0, round(c_monto - surplus, 2))
+            surplus = max(0.0, surplus - c_monto)
+        else:
+            efectivo = c_monto
+        cuotas_data.append({
+            "id": c.id, "prestamo_id": c.prestamo_id,
+            "numero_cuota": c.numero_cuota,
+            "fecha_vencimiento": c.fecha_vencimiento.isoformat(),
+            "monto": c_monto, "monto_efectivo": efectivo, "estado": c.estado,
+        })
+
     return {
         "prestamo": {
             "id": prestamo.id,
@@ -84,15 +109,7 @@ def detalle_completo(
             "apellido": prestamo.cliente.apellido,
             "dni": prestamo.cliente.dni,
         } if prestamo.cliente else None,
-        "cuotas_rel": [
-            {
-                "id": c.id, "prestamo_id": c.prestamo_id,
-                "numero_cuota": c.numero_cuota,
-                "fecha_vencimiento": c.fecha_vencimiento.isoformat(),
-                "monto": float(c.monto), "estado": c.estado,
-            }
-            for c in cuotas_sorted
-        ],
+        "cuotas_rel": cuotas_data,
         "pagos": [
             {
                 "id": p.id, "prestamo_id": p.prestamo_id,
@@ -225,14 +242,60 @@ def crear_prestamo(
     return prestamo
 
 
+@router.get("/export/csv")
+def export_prestamos_csv(
+    estado: Optional[str] = Query(None),
+    cliente_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    _user: str = Depends(get_current_user),
+):
+    q = (
+        db.query(Prestamo, Cliente)
+        .join(Cliente, Prestamo.cliente_id == Cliente.id)
+    )
+    if estado:
+        q = q.filter(Prestamo.estado == estado)
+    if cliente_id:
+        q = q.filter(Prestamo.cliente_id == cliente_id)
+    rows = q.order_by(Prestamo.id.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Cliente", "DNI", "Monto", "Interés (%)", "Cuotas", "Fecha Inicio", "Estado"])
+    for p, c in rows:
+        writer.writerow([
+            p.id,
+            f"{c.nombre} {c.apellido}",
+            c.dni,
+            float(p.monto),
+            p.interes_total,
+            p.cuotas,
+            p.fecha_inicio.isoformat() if p.fecha_inicio else "",
+            p.estado,
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=prestamos.csv"},
+    )
+
+
 @router.get("/", response_model=list[PrestamoRead])
 def listar_prestamos(
     offset: int = 0,
     limit: int = 20,
+    estado: Optional[str] = Query(None),
+    cliente_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     _user: str = Depends(get_current_user),
 ):
-    return db.query(Prestamo).order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
+    q = db.query(Prestamo)
+    if estado:
+        q = q.filter(Prestamo.estado == estado)
+    if cliente_id:
+        q = q.filter(Prestamo.cliente_id == cliente_id)
+    return q.order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
 
 
 @router.get("/{prestamo_id}", response_model=PrestamoRead)

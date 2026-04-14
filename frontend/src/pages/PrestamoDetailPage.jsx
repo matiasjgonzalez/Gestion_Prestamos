@@ -14,7 +14,8 @@ import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, XCircle } from 'luc
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
-function cuotaBadge(estado) {
+function cuotaBadge(estado, parcial) {
+  if (parcial) return <span className="badge badge-warning">Pago parcial</span>;
   switch (estado) {
     case 'pagada': return <span className="badge badge-success">Pagada</span>;
     case 'vencida': return <span className="badge badge-danger">Vencida</span>;
@@ -210,12 +211,23 @@ export default function PrestamoDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {cuotas_rel.map((c) => (
+            {cuotas_rel.map((c) => {
+              const parcial = c.estado !== 'pagada' && c.monto_efectivo != null && c.monto_efectivo < c.monto && c.monto_efectivo > 0;
+              return (
               <tr key={c.id}>
                 <td className="text-mono">{c.numero_cuota}</td>
                 <td>{new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR')}</td>
-                <td className="text-mono">{formatMoney(c.monto)}</td>
-                <td>{cuotaBadge(c.estado)}</td>
+                <td className="text-mono">
+                  {parcial ? (
+                    <span>
+                      {formatMoney(c.monto_efectivo)}{' '}
+                      <span className="text-muted" style={{ fontSize: '0.78rem', textDecoration: 'line-through' }}>
+                        {formatMoney(c.monto)}
+                      </span>
+                    </span>
+                  ) : formatMoney(c.monto)}
+                </td>
+                <td>{cuotaBadge(c.estado, parcial)}</td>
                 {prestamo.estado === 'activo' && (
                   <td>
                     {c.estado !== 'pagada' && (
@@ -231,7 +243,8 @@ export default function PrestamoDetailPage() {
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

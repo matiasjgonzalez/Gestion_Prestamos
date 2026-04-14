@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
+from sqlalchemy import func
 from database import get_db
 from models.client import Cliente
 from schemas.client import ClienteCreate, ClienteRead, ClienteUpdate
@@ -39,6 +40,7 @@ def list_clientes(
             (Cliente.nombre.ilike(pattern))
             | (Cliente.apellido.ilike(pattern))
             | (Cliente.dni.ilike(pattern))
+            | (func.concat(Cliente.nombre, ' ', Cliente.apellido).ilike(pattern))
         )
     return query.order_by(Cliente.apellido, Cliente.nombre).offset(offset).limit(limit).all()
 

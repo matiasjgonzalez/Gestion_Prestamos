@@ -57,8 +57,8 @@ def obtener_cuotas_en_mora(db: Session) -> list[dict]:
             "fecha_vencimiento": c.fecha_vencimiento.isoformat(),
             "monto": float(c.monto),
             "dias_atraso": (hoy - c.fecha_vencimiento).days,
-            "cliente_nombre": c.prestamo.cliente.nombre if c.prestamo and c.prestamo.cliente else None,
-            "cliente_apellido": c.prestamo.cliente.apellido if c.prestamo and c.prestamo.cliente else None,
+            "cliente_nombre": f"{c.prestamo.cliente.nombre} {c.prestamo.cliente.apellido}" if c.prestamo and c.prestamo.cliente else None,
+            "cliente_dni": c.prestamo.cliente.dni if c.prestamo and c.prestamo.cliente else None,
         }
         for c in cuotas
     ]

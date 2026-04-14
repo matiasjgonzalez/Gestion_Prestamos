@@ -1,4 +1,7 @@
+import csv
+import io
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from services.mora_service import verificar_mora, obtener_cuotas_en_mora
@@ -34,3 +37,30 @@ def listar_mora(
         "total_en_mora": len(cuotas),
         "cuotas": cuotas,
     }
+
+
+@router.get("/export/csv")
+def export_mora_csv(
+    db: Session = Depends(get_db),
+    _user: str = Depends(get_current_user),
+):
+    cuotas = obtener_cuotas_en_mora(db)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Préstamo ID", "Cliente", "DNI", "N° Cuota", "Vencimiento", "Monto", "Estado"])
+    for c in cuotas:
+        writer.writerow([
+            c["prestamo_id"],
+            c["cliente_nombre"],
+            c["cliente_dni"],
+            c["numero_cuota"],
+            c["fecha_vencimiento"],
+            c["monto"],
+            c["estado"],
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=mora.csv"},
+    )

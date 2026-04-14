@@ -7,6 +7,7 @@ print(f"PORT: {os.environ.get('PORT', 'NOT SET')}", flush=True)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from database import engine, Base
 from routes import auth, clientes, prestamos, pagos, mora
 from contextlib import asynccontextmanager
@@ -14,10 +15,22 @@ from contextlib import asynccontextmanager
 import models  # noqa: F401
 
 
+_INDEX_SQL = [
+    "CREATE INDEX IF NOT EXISTS ix_prestamos_estado ON prestamos (estado)",
+    "CREATE INDEX IF NOT EXISTS ix_cuotas_estado ON cuotas (estado)",
+    "CREATE INDEX IF NOT EXISTS ix_cuotas_fecha_vencimiento ON cuotas (fecha_vencimiento)",
+    "CREATE INDEX IF NOT EXISTS ix_cuotas_estado_fecha ON cuotas (estado, fecha_vencimiento)",
+]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Creating tables...", flush=True)
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        for sql in _INDEX_SQL:
+            conn.execute(text(sql))
+        conn.commit()
     print("Tables created OK", flush=True)
     yield
 

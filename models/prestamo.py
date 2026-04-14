@@ -15,7 +15,7 @@ class Prestamo(Base):
     cuotas = Column(Integer, nullable=False)
     monto_cuota = Column(Numeric(12, 2), nullable=True)  # puede ser None si cuotas manuales
     fecha_inicio = Column(Date, nullable=True)
-    estado = Column(String(30), nullable=False, default="activo")
+    estado = Column(String(30), nullable=False, default="activo", index=True)
 
     cliente = relationship("Cliente", back_populates="prestamos")
     cuotas_rel = relationship(

@@ -30,7 +30,8 @@ export default function PrestamosPage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '' });
-  const [numCuotas, setNumCuotas] = useState(1);
+  const [numCuotasStr, setNumCuotasStr] = useState('1');
+  const numCuotas = Math.max(0, parseInt(numCuotasStr) || 0);
   const [fechasCuotas, setFechasCuotas] = useState(['']);
   const [confirmModal, setConfirmModal] = useState(null);
   const [clienteSearch, setClienteSearch] = useState('');
@@ -53,6 +54,7 @@ export default function PrestamosPage() {
 
   // Redimensionar array de fechas al cambiar cantidad de cuotas
   useEffect(() => {
+    if (numCuotas < 1) return;
     setFechasCuotas((prev) =>
       Array.from({ length: numCuotas }, (_, i) => prev[i] || '')
     );
@@ -95,7 +97,7 @@ export default function PrestamosPage() {
 
   const openCreate = () => {
     setForm({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '' });
-    setNumCuotas(1);
+    setNumCuotasStr('1');
     setFechasCuotas(['']);
     setClienteSearch('');
     setShowClientDropdown(false);
@@ -117,6 +119,7 @@ export default function PrestamosPage() {
     if (submitting) return;
     if (!form.cliente_id) { toast.error('Seleccioná un cliente'); return; }
     if (!form.monto || !form.interes_total) { toast.error('Completá monto e interés'); return; }
+    if (numCuotas < 1) { toast.error('La cantidad de cuotas debe ser al menos 1'); return; }
     if (fechasCuotas.some((f) => !f)) { toast.error('Completá la fecha de todas las cuotas'); return; }
 
     setSubmitting(true);
@@ -328,8 +331,12 @@ export default function PrestamosPage() {
                   className="form-control no-spinner"
                   type="number"
                   min="1"
-                  value={numCuotas}
-                  onChange={(e) => setNumCuotas(Math.max(1, parseInt(e.target.value) || 1))}
+                  value={numCuotasStr}
+                  onChange={(e) => setNumCuotasStr(e.target.value)}
+                  onBlur={(e) => {
+                    const n = Math.max(1, parseInt(e.target.value) || 1);
+                    setNumCuotasStr(String(n));
+                  }}
                   required
                 />
               </div>
