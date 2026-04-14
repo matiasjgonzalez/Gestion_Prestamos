@@ -14,12 +14,12 @@ def create_prestamo(
     num_cuotas: int,
     cuotas_detalle: List[CuotaInput],
     fecha_inicio: date | None = None,
+    tipo_prestamo: str = "mensual",
 ) -> Prestamo:
     if fecha_inicio is None:
         fecha_inicio = date.today()
 
     total = float(monto) * (1 + float(interes_total) / 100.0)
-    # monto_cuota promedio como referencia
     monto_cuota = round(total / float(num_cuotas), 2)
 
     prestamo = Prestamo(
@@ -30,6 +30,7 @@ def create_prestamo(
         monto_cuota=monto_cuota,
         fecha_inicio=fecha_inicio,
         estado="activo",
+        tipo_prestamo=tipo_prestamo,
     )
     db.add(prestamo)
     db.flush()

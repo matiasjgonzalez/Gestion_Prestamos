@@ -788,6 +788,33 @@ select.form-control { cursor: pointer; }
 
 .cuota-calc-info strong { font-weight: 700; }
 
+/* ─── Tipo préstamo selector ─── */
+.tipo-selector {
+  display: flex;
+  gap: 8px;
+}
+.tipo-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tipo-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tipo-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 /* ─── Inline form validation ─── */
 .input-error { border-color: var(--danger) !important; }
 .input-error:focus { border-color: var(--danger) !important; }

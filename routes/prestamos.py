@@ -238,6 +238,7 @@ def crear_prestamo(
         num_cuotas=payload.cuotas,
         cuotas_detalle=payload.cuotas_detalle,
         fecha_inicio=payload.fecha_inicio,
+        tipo_prestamo=payload.tipo_prestamo,
     )
     return prestamo
 

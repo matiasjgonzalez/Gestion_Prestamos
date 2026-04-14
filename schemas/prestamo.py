@@ -10,6 +10,7 @@ class PrestamoBase(BaseModel):
     interes_total: float
     cuotas: int
     fecha_inicio: Optional[date] = None
+    tipo_prestamo: str = "mensual"
 
 
 class PrestamoCreate(PrestamoBase):

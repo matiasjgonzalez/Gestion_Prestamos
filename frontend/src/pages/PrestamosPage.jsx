@@ -13,9 +13,16 @@ function estadoBadge(estado) {
   return <span className="badge badge-success">Finalizado</span>;
 }
 
-function addMonths(dateStr, months) {
+const TIPO_DIAS = { semanal: 7, quincenal: 15, mensual: null };
+const TIPOS = ['semanal', 'quincenal', 'mensual'];
+
+function addInterval(dateStr, tipo, n) {
   const d = new Date(dateStr + 'T00:00:00');
-  d.setMonth(d.getMonth() + months);
+  if (tipo === 'mensual') {
+    d.setMonth(d.getMonth() + n);
+  } else {
+    d.setDate(d.getDate() + TIPO_DIAS[tipo] * n);
+  }
   return d.toISOString().split('T')[0];
 }
 
@@ -29,7 +36,7 @@ export default function PrestamosPage() {
   const [showModal, setShowModal] = useState(false);
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '' });
+  const [form, setForm] = useState({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '', tipo_prestamo: 'mensual' });
   const [numCuotasStr, setNumCuotasStr] = useState('1');
   const numCuotas = Math.max(0, parseInt(numCuotasStr) || 0);
   const [fechasCuotas, setFechasCuotas] = useState(['']);
@@ -60,13 +67,13 @@ export default function PrestamosPage() {
     );
   }, [numCuotas]);
 
-  // Auto-generar fechas mensuales cuando cambia fecha_inicio o numCuotas
+  // Auto-generar fechas según tipo y fecha_inicio
   useEffect(() => {
     if (!form.fecha_inicio || !numCuotas) return;
     setFechasCuotas(
-      Array.from({ length: numCuotas }, (_, i) => addMonths(form.fecha_inicio, i + 1))
+      Array.from({ length: numCuotas }, (_, i) => addInterval(form.fecha_inicio, form.tipo_prestamo, i + 1))
     );
-  }, [form.fecha_inicio, numCuotas]);
+  }, [form.fecha_inicio, numCuotas, form.tipo_prestamo]);
 
   const filteredClientes = clientes.filter((c) => {
     const q = clienteSearch.toLowerCase();
@@ -96,7 +103,7 @@ export default function PrestamosPage() {
   };
 
   const openCreate = () => {
-    setForm({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '' });
+    setForm({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '', tipo_prestamo: 'mensual' });
     setNumCuotasStr('1');
     setFechasCuotas(['']);
     setClienteSearch('');
@@ -128,6 +135,7 @@ export default function PrestamosPage() {
       monto: parseFloat(form.monto),
       interes_total: parseFloat(form.interes_total),
       cuotas: numCuotas,
+      tipo_prestamo: form.tipo_prestamo,
       fecha_inicio: form.fecha_inicio || null,
       cuotas_detalle: fechasCuotas.map((fecha, i) => ({
         numero_cuota: i + 1,
@@ -225,6 +233,23 @@ export default function PrestamosPage() {
       {showModal && (
         <Modal title="Nuevo Préstamo" onClose={() => setShowModal(false)} wide>
           <form onSubmit={handleSubmit}>
+
+            {/* Tipo de préstamo */}
+            <div className="form-group">
+              <label>Tipo de Préstamo</label>
+              <div className="tipo-selector">
+                {TIPOS.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`tipo-btn ${form.tipo_prestamo === t ? 'active' : ''}`}
+                    onClick={() => setForm((f) => ({ ...f, tipo_prestamo: t }))}
+                  >
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Cliente + Fecha */}
             <div className="form-row">

@@ -187,6 +187,10 @@ export default function PrestamoDetailPage() {
           <div className="detail-item"><label>Cantidad de Cuotas</label><span>{prestamo.cuotas}</span></div>
           <div className="detail-item"><label>Fecha Inicio</label><span>{prestamo.fecha_inicio || '—'}</span></div>
           <div className="detail-item">
+            <label>Tipo</label>
+            <span style={{ textTransform: 'capitalize' }}>{prestamo.tipo_prestamo || 'Mensual'}</span>
+          </div>
+          <div className="detail-item">
             <label>Estado</label>
             {prestamo.estado === 'activo'
               ? <span className="badge badge-default">Activo</span>

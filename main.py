@@ -22,13 +22,17 @@ _INDEX_SQL = [
     "CREATE INDEX IF NOT EXISTS ix_cuotas_estado_fecha ON cuotas (estado, fecha_vencimiento)",
 ]
 
+_MIGRATE_SQL = [
+    "ALTER TABLE prestamos ADD COLUMN IF NOT EXISTS tipo_prestamo VARCHAR(20) NOT NULL DEFAULT 'mensual'",
+]
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Creating tables...", flush=True)
     Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
-        for sql in _INDEX_SQL:
+        for sql in _MIGRATE_SQL + _INDEX_SQL:
             conn.execute(text(sql))
         conn.commit()
     print("Tables created OK", flush=True)
