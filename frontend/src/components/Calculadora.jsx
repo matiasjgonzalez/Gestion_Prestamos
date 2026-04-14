@@ -31,7 +31,7 @@ export default function Calculadora({ onClose }) {
     >
       <div
         style={{
-          background: 'var(--bg)',
+          background: 'var(--bg-card)',
           border: '1px solid var(--border)',
           borderRadius: 12,
           width: '100%',
@@ -99,7 +99,7 @@ export default function Calculadora({ onClose }) {
         {hasResult && (
           <div style={{
             marginTop: 20,
-            background: 'var(--bg)',
+            background: 'var(--bg-secondary)',
             border: '1px solid var(--border)',
             borderRadius: 8,
             padding: '16px 20px',
