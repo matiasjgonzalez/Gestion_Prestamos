@@ -4,6 +4,7 @@ import {
   getPrestamoCompleto,
   registrarPago,
   marcarCuotaPagada,
+  desmarcarCuotaPagada,
   cancelarPrestamo,
   updateCuota,
   invalidateCache,
@@ -11,7 +12,7 @@ import {
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, Pencil } from 'lucide-react';
+import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, Pencil, RotateCcw } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
@@ -82,7 +83,7 @@ export default function PrestamoDetailPage() {
     if (submitting) return;
     setConfirmModal({
       title: `¿Marcar cuota #${numeroCuota} como pagada?`,
-      message: 'Esta acción no se puede deshacer.',
+      message: 'Podés deshacer esta acción desde la misma cuota si te equivocás.',
       danger: false,
       onConfirm: async () => {
         setConfirmModal(null);
@@ -90,6 +91,28 @@ export default function PrestamoDetailPage() {
         try {
           await marcarCuotaPagada(id, cuotaId);
           toast.success(`Cuota #${numeroCuota} marcada como pagada`);
+          reload();
+        } catch (err) {
+          toast.error(err.response?.data?.detail || 'Error');
+        } finally {
+          setSubmitting(false);
+        }
+      },
+    });
+  };
+
+  const handleDesmarcarCuota = (cuotaId, numeroCuota) => {
+    if (submitting) return;
+    setConfirmModal({
+      title: `¿Desmarcar cuota #${numeroCuota}?`,
+      message: 'La cuota volverá a estado pendiente o vencida y se eliminará el pago automático registrado.',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        setSubmitting(true);
+        try {
+          await desmarcarCuotaPagada(id, cuotaId);
+          toast.success(`Cuota #${numeroCuota} desmarcada`);
           reload();
         } catch (err) {
           toast.error(err.response?.data?.detail || 'Error');
@@ -261,7 +284,7 @@ export default function PrestamoDetailPage() {
                       >
                         <Pencil size={13} />
                       </button>
-                      {c.estado !== 'pagada' && (
+                      {c.estado !== 'pagada' ? (
                         <button
                           className="btn-icon"
                           style={{ color: 'var(--success)' }}
@@ -270,6 +293,16 @@ export default function PrestamoDetailPage() {
                           title="Marcar como pagada"
                         >
                           <CheckCircle size={13} />
+                        </button>
+                      ) : (
+                        <button
+                          className="btn-icon"
+                          style={{ color: 'var(--text-muted)' }}
+                          onClick={() => handleDesmarcarCuota(c.id, c.numero_cuota)}
+                          disabled={submitting}
+                          title="Desmarcar (revertir pago)"
+                        >
+                          <RotateCcw size={13} />
                         </button>
                       )}
                     </div>

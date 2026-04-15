@@ -169,6 +169,7 @@ def marcar_cuota_pagada(
     # Registrar pago automático
     pago = Pago(
         prestamo_id=prestamo_id,
+        cuota_id=cuota_id,
         monto_pagado=float(cuota.monto),
         fecha_pago=datetime.now(timezone.utc),
         dias_atraso=max(0, (date.today() - cuota.fecha_vencimiento).days) if cuota.fecha_vencimiento <= date.today() else 0,
@@ -189,6 +190,47 @@ def marcar_cuota_pagada(
 
     db.commit()
     return {"ok": True, "message": f"Cuota #{cuota.numero_cuota} marcada como pagada"}
+
+
+@router.post("/{prestamo_id}/cuotas/{cuota_id}/desmarcar-pagada")
+def desmarcar_cuota_pagada(
+    prestamo_id: int,
+    cuota_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Revierte el marcado de una cuota como pagada y elimina el pago automático asociado."""
+    cuota = (
+        db.query(Cuota)
+        .filter(Cuota.id == cuota_id, Cuota.prestamo_id == prestamo_id)
+        .first()
+    )
+    if not cuota:
+        raise HTTPException(status_code=404, detail="Cuota no encontrada")
+    if cuota.estado != "pagada":
+        raise HTTPException(status_code=400, detail="La cuota no está marcada como pagada")
+
+    # Restaurar estado según si venció o no
+    cuota.estado = "vencida" if cuota.fecha_vencimiento < date.today() else "pendiente"
+    db.add(cuota)
+
+    # Eliminar el pago automático vinculado a esta cuota
+    pago_auto = (
+        db.query(Pago)
+        .filter(Pago.prestamo_id == prestamo_id, Pago.cuota_id == cuota_id)
+        .first()
+    )
+    if pago_auto:
+        db.delete(pago_auto)
+
+    # Si el préstamo estaba finalizado, reactivarlo
+    prestamo = db.query(Prestamo).filter(Prestamo.id == prestamo_id).first()
+    if prestamo and prestamo.estado == "finalizado":
+        prestamo.estado = "activo"
+        db.add(prestamo)
+
+    db.commit()
+    return {"ok": True, "message": f"Cuota #{cuota.numero_cuota} desmarcada"}
 
 
 @router.post("/{prestamo_id}/cancelar")

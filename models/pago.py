@@ -11,6 +11,7 @@ class Pago(Base):
     prestamo_id = Column(
         Integer, ForeignKey("prestamos.id"), nullable=False, index=True
     )
+    cuota_id = Column(Integer, ForeignKey("cuotas.id"), nullable=True, index=True)
     monto_pagado = Column(Numeric(12, 2), nullable=False)
     fecha_pago = Column(DateTime(timezone=True), server_default=func.now())
     dias_atraso = Column(Integer, nullable=True)

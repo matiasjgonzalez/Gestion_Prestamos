@@ -960,6 +960,76 @@ select.form-control { cursor: pointer; }
 .bottom-nav-item.active { color: var(--accent); }
 .bottom-nav-item:hover { color: var(--text-primary); }
 
+/* ─── Bottom sheet (panel "Más" en mobile) ─── */
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bottom-sheet {
+  width: 100%;
+  background: var(--bg-card);
+  border-radius: 16px 16px 0 0;
+  padding: 8px 8px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+}
+
+.bottom-sheet-handle {
+  width: 40px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 4px auto 10px;
+  flex-shrink: 0;
+}
+
+.bottom-sheet-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 8px;
+}
+
+.bottom-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-decoration: none;
+  font-family: var(--font-body);
+  width: 100%;
+  text-align: left;
+  transition: background var(--transition), color var(--transition);
+}
+
+.bottom-sheet-item:hover,
+.bottom-sheet-item.active {
+  background: var(--bg-secondary);
+  color: var(--accent);
+}
+
+.bottom-sheet-danger {
+  color: var(--danger);
+}
+
+.bottom-sheet-danger:hover {
+  background: var(--danger-muted);
+  color: var(--danger);
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
   .sidebar { display: none; }

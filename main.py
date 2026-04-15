@@ -18,6 +18,7 @@ import models  # noqa: F401
 
 _MIGRATE_SQL = [
     "ALTER TABLE prestamos ADD COLUMN IF NOT EXISTS tipo_prestamo VARCHAR(20) NOT NULL DEFAULT 'mensual'",
+    "ALTER TABLE pagos ADD COLUMN IF NOT EXISTS cuota_id INTEGER REFERENCES cuotas(id)",
 ]
 
 _INDEX_SQL = [

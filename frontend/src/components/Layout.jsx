@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Calculator,
   CalendarDays,
+  MoreHorizontal,
+  X,
 } from 'lucide-react';
 
 const navItems = [
@@ -24,16 +26,22 @@ const navItems = [
   { to: '/calendario', icon: CalendarDays, label: 'Calendario' },
 ];
 
+// Bottom nav muestra solo los primeros 4 + botón "Más"
+const bottomNavMain = navItems.slice(0, 4);
+
 export default function Layout() {
   const { logout, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showCalc, setShowCalc] = useState(false);
+  const [showMore, setShowMore] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  const closeMore = () => setShowMore(false);
 
   return (
     <div className="app-layout">
@@ -84,12 +92,16 @@ export default function Layout() {
           </button>
         </div>
       </aside>
+
       <main className="main-content">
         <Outlet />
       </main>
+
       {showCalc && <Calculadora onClose={() => setShowCalc(false)} />}
+
+      {/* Bottom nav — mobile */}
       <nav className="bottom-nav">
-        {navItems.map((item) => (
+        {bottomNavMain.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -102,28 +114,73 @@ export default function Layout() {
             <span>{item.label}</span>
           </NavLink>
         ))}
-        {isAdmin && (
-          <NavLink
-            to="/usuarios"
-            className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}
-          >
-            <ShieldCheck size={22} />
-            <span>Usuarios</span>
-          </NavLink>
-        )}
-        <button className="bottom-nav-item" onClick={() => setShowCalc(true)}>
-          <Calculator size={22} />
-          <span>Calc</span>
-        </button>
-        <button className="bottom-nav-item" onClick={toggleTheme}>
-          {theme === 'light' ? <Moon size={22} /> : <Sun size={22} />}
-          <span>{theme === 'light' ? 'Oscuro' : 'Claro'}</span>
-        </button>
-        <button className="bottom-nav-item" onClick={handleLogout}>
-          <LogOut size={22} />
-          <span>Salir</span>
+        <button
+          className={`bottom-nav-item ${showMore ? 'active' : ''}`}
+          onClick={() => setShowMore(true)}
+        >
+          <MoreHorizontal size={22} />
+          <span>Más</span>
         </button>
       </nav>
+
+      {/* Bottom sheet — "Más" */}
+      {showMore && (
+        <div
+          className="bottom-sheet-overlay"
+          onClick={closeMore}
+        >
+          <div
+            className="bottom-sheet"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bottom-sheet-handle" />
+
+            <NavLink
+              to="/calendario"
+              className={({ isActive }) =>
+                `bottom-sheet-item ${isActive ? 'active' : ''}`
+              }
+              onClick={closeMore}
+            >
+              <CalendarDays size={20} />
+              Calendario
+            </NavLink>
+
+            <button
+              className="bottom-sheet-item"
+              onClick={() => { setShowCalc(true); closeMore(); }}
+            >
+              <Calculator size={20} />
+              Calculadora
+            </button>
+
+            {isAdmin && (
+              <NavLink
+                to="/usuarios"
+                className={({ isActive }) =>
+                  `bottom-sheet-item ${isActive ? 'active' : ''}`
+                }
+                onClick={closeMore}
+              >
+                <ShieldCheck size={20} />
+                Usuarios
+              </NavLink>
+            )}
+
+            <div className="bottom-sheet-divider" />
+
+            <button className="bottom-sheet-item" onClick={() => { toggleTheme(); closeMore(); }}>
+              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+              {theme === 'light' ? 'Modo oscuro' : 'Modo claro'}
+            </button>
+
+            <button className="bottom-sheet-item bottom-sheet-danger" onClick={handleLogout}>
+              <LogOut size={20} />
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

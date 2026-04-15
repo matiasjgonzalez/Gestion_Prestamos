@@ -107,6 +107,11 @@ export const marcarCuotaPagada = (prestamoId, cuotaId) => {
   return api.post(`/prestamos/${prestamoId}/cuotas/${cuotaId}/marcar-pagada`);
 };
 
+export const desmarcarCuotaPagada = (prestamoId, cuotaId) => {
+  invalidateCache('/prestamos');
+  return api.post(`/prestamos/${prestamoId}/cuotas/${cuotaId}/desmarcar-pagada`);
+};
+
 export const cancelarPrestamo = (id) => {
   invalidateCache('/prestamos');
   return api.post(`/prestamos/${id}/cancelar`);
