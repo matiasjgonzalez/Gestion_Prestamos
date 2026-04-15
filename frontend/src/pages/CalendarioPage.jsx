@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCalendario, invalidateCache } from '../services/api';
 import toast from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, AlertTriangle } from 'lucide-react';
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MESES = [
@@ -20,11 +20,31 @@ function primerDiaSemana(anio, mes) {
   return d === 0 ? 6 : d - 1;
 }
 
+function badgeStyle(estado) {
+  if (estado === 'vencida') return {
+    background: 'var(--danger-muted)',
+    color: 'var(--danger)',
+    border: '1px solid var(--danger)',
+  };
+  if (estado === 'pagada') return {
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-muted)',
+    border: '1px solid var(--border)',
+  };
+  // pendiente
+  return {
+    background: 'var(--success-muted)',
+    color: 'var(--success)',
+    border: '1px solid var(--success)',
+  };
+}
+
 export default function CalendarioPage() {
   const hoy = new Date();
   const [mes, setMes] = useState(hoy.getMonth() + 1);
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [diasData, setDiasData] = useState({});
+  const [vencidasAnt, setVencidasAnt] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -38,6 +58,7 @@ export default function CalendarioPage() {
     try {
       const res = await getCalendario(mes, anio);
       setDiasData(res.data.dias || {});
+      setVencidasAnt(res.data.vencidas_anteriores || []);
     } catch (err) {
       toast.error('Error al cargar el calendario');
     } finally {
@@ -65,7 +86,7 @@ export default function CalendarioPage() {
   const hoyAnio = hoy.getFullYear();
   const esHoy = (dia) => dia === hoyDia && mes === hoyMes && anio === hoyAnio;
 
-  const totalCuotas = Object.values(diasData).reduce((s, arr) => s + arr.length, 0);
+  const totalCuotasMes = Object.values(diasData).reduce((s, arr) => s + arr.length, 0);
 
   return (
     <div>
@@ -75,12 +96,79 @@ export default function CalendarioPage() {
           <CalendarDays size={20} style={{ marginRight: 8, verticalAlign: -2 }} />
           Calendario de Pagos
         </h2>
-        {!loading && totalCuotas > 0 && (
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            {totalCuotas} cuota{totalCuotas !== 1 ? 's' : ''} este mes
-          </span>
-        )}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          {!loading && vencidasAnt.length > 0 && (
+            <span style={{
+              color: 'var(--danger)',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}>
+              <AlertTriangle size={14} />
+              {vencidasAnt.length} vencida{vencidasAnt.length !== 1 ? 's' : ''} de meses anteriores
+            </span>
+          )}
+          {!loading && totalCuotasMes > 0 && (
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              {totalCuotasMes} cuota{totalCuotasMes !== 1 ? 's' : ''} este mes
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Vencidas de meses anteriores */}
+      {!loading && vencidasAnt.length > 0 && (
+        <div style={{
+          background: 'var(--danger-muted)',
+          border: '1px solid var(--danger)',
+          borderRadius: 8,
+          padding: '12px 16px',
+          marginBottom: 16,
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 8,
+            fontWeight: 600,
+            fontSize: '0.88rem',
+            color: 'var(--danger)',
+          }}>
+            <AlertTriangle size={15} />
+            Cuotas vencidas de meses anteriores
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {vencidasAnt.map(c => (
+              <div
+                key={c.cuota_id}
+                onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  padding: '4px 0',
+                  borderBottom: '1px solid var(--danger)',
+                  opacity: 0.9,
+                }}
+              >
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                  {c.cliente_nombre}
+                </span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                  </span>
+                  <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>
+                    #{c.numero_cuota}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Navegación de mes */}
       <div style={{
@@ -126,8 +214,6 @@ export default function CalendarioPage() {
             const dia = idx - offset + 1;
             const valido = dia >= 1 && dia <= totalDias;
             const cuotas = valido ? (diasData[dia] || []) : [];
-            const tieneCuotas = cuotas.length > 0;
-            const hayVencidas = cuotas.some(c => c.estado === 'vencida');
 
             return (
               <div key={idx} style={{
@@ -161,19 +247,13 @@ export default function CalendarioPage() {
                     </div>
 
                     {/* Badges de clientes */}
-                    {cuotas.slice(0, 3).map((c, i) => (
+                    {cuotas.slice(0, 3).map((c) => (
                       <div
                         key={c.cuota_id}
                         onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
-                        title={`${c.cliente_nombre} — Cuota #${c.numero_cuota}`}
+                        title={`${c.cliente_nombre} — Cuota #${c.numero_cuota} (${c.estado})`}
                         style={{
-                          background: c.estado === 'vencida'
-                            ? 'var(--danger-muted)'
-                            : 'var(--success-muted)',
-                          color: c.estado === 'vencida'
-                            ? 'var(--danger)'
-                            : 'var(--success)',
-                          border: `1px solid ${c.estado === 'vencida' ? 'var(--danger)' : 'var(--success)'}`,
+                          ...badgeStyle(c.estado),
                           borderRadius: 3,
                           fontSize: '0.65rem',
                           padding: '1px 4px',
@@ -217,13 +297,17 @@ export default function CalendarioPage() {
           Vencida
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          <span style={{ width: 12, height: 12, borderRadius: 2, background: 'var(--bg-secondary)', border: '1px solid var(--border)', display: 'inline-block' }} />
+          Pagada
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
           <span style={{ width: 12, height: 12, borderRadius: 2, background: 'var(--accent-muted)', border: '1px solid var(--accent)', display: 'inline-block' }} />
           Hoy
         </div>
       </div>
 
-      {/* Resumen del mes — vista mobile friendly */}
-      {!loading && totalCuotas > 0 && (
+      {/* Detalle del mes */}
+      {!loading && totalCuotasMes > 0 && (
         <div style={{ marginTop: 24 }}>
           <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 10 }}>
             Detalle del mes
@@ -270,13 +354,19 @@ export default function CalendarioPage() {
                       >
                         <span style={{
                           fontSize: '0.85rem',
-                          color: 'var(--text-primary)',
+                          color: c.estado === 'pagada' ? 'var(--text-muted)' : 'var(--text-primary)',
                           fontWeight: 500,
+                          textDecoration: c.estado === 'pagada' ? 'line-through' : 'none',
                         }}>
                           {c.cliente_nombre}
                         </span>
-                        <span className={`badge ${c.estado === 'vencida' ? 'badge-danger' : 'badge-success'}`}
-                          style={{ fontSize: '0.7rem' }}>
+                        <span
+                          className={`badge ${c.estado === 'vencida' ? 'badge-danger' : c.estado === 'pagada' ? '' : 'badge-success'}`}
+                          style={{
+                            fontSize: '0.7rem',
+                            ...(c.estado === 'pagada' ? { background: 'var(--bg-secondary)', color: 'var(--text-muted)' } : {}),
+                          }}
+                        >
                           #{c.numero_cuota}
                         </span>
                       </div>
@@ -288,11 +378,11 @@ export default function CalendarioPage() {
         </div>
       )}
 
-      {!loading && totalCuotas === 0 && (
+      {!loading && totalCuotasMes === 0 && vencidasAnt.length === 0 && (
         <div className="empty-state" style={{ marginTop: 32 }}>
           <CalendarDays size={40} />
           <h3>Sin pagos este mes</h3>
-          <p>No hay cuotas pendientes en {MESES[mes - 1]} {anio}</p>
+          <p>No hay cuotas en {MESES[mes - 1]} {anio}</p>
         </div>
       )}
     </div>
