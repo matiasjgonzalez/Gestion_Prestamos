@@ -83,3 +83,9 @@ app.include_router(usuarios.router, prefix="/usuarios", tags=["Usuarios"])
 @app.get("/")
 def root():
     return {"message": "API de Gestión de Préstamos activa"}
+
+
+@app.get("/ping")
+def ping():
+    """Endpoint liviano para mantener el servidor activo (keep-alive)."""
+    return {"ok": True}

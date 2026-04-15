@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import date
 from .cuota import CuotaRead, CuotaInput
@@ -6,9 +6,9 @@ from .cuota import CuotaRead, CuotaInput
 
 class PrestamoBase(BaseModel):
     cliente_id: int
-    monto: float
-    interes_total: float
-    cuotas: int
+    monto: float = Field(..., gt=0, description="Monto debe ser mayor a 0")
+    interes_total: float = Field(..., ge=0, description="Interés no puede ser negativo")
+    cuotas: int = Field(..., ge=1, description="Debe tener al menos 1 cuota")
     fecha_inicio: Optional[date] = None
     tipo_prestamo: str = "mensual"
 

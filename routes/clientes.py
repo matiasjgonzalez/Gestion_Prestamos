@@ -76,7 +76,7 @@ def get_cliente_resumen(
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    cliente = db.query(Cliente).get(cliente_id)
+    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
@@ -108,7 +108,7 @@ def get_cliente(
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    cliente = db.query(Cliente).get(cliente_id)
+    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     return cliente
@@ -121,7 +121,7 @@ def update_cliente(
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    cliente = db.query(Cliente).get(cliente_id)
+    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     for k, v in payload.model_dump(exclude_unset=True).items():
@@ -138,7 +138,7 @@ def delete_cliente(
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    cliente = db.query(Cliente).get(cliente_id)
+    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     db.delete(cliente)

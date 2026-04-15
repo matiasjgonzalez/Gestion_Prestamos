@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
 
 class PagoCreate(BaseModel):
     prestamo_id: int
-    monto_pagado: float
+    monto_pagado: float = Field(..., gt=0, description="El monto del pago debe ser mayor a 0")
     fecha_pago: Optional[datetime] = None
 
 

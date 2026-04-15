@@ -94,13 +94,17 @@ function AppRoutes() {
 }
 
 export default function App() {
-  // Prefetch de datos pesados (dashboard/mora) cuando el usuario esté autenticado
+  // Prefetch de datos pesados y keep-alive para evitar cold starts en Render
   function Prefetcher() {
     const { isAuthenticated } = useAuth();
     useEffect(() => {
       if (!isAuthenticated) return;
-      // Calentar cache en background sin bloquear render
       Promise.allSettled([getDashboard(), getMora()]);
+      // Ping cada 10 minutos para mantener el servidor activo
+      const interval = setInterval(() => {
+        fetch(`${import.meta.env.VITE_API_URL || ''}/ping`).catch(() => {});
+      }, 10 * 60 * 1000);
+      return () => clearInterval(interval);
     }, [isAuthenticated]);
     return null;
   }

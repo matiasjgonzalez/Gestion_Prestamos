@@ -17,7 +17,7 @@ def registrar_pago(
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    prestamo = db.query(Prestamo).get(payload.prestamo_id)
+    prestamo = db.query(Prestamo).filter(Prestamo.id == payload.prestamo_id).first()
     if not prestamo:
         raise HTTPException(status_code=404, detail="Préstamo no encontrado")
     if prestamo.estado == "finalizado":
