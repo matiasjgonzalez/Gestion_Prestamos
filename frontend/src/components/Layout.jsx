@@ -13,6 +13,7 @@ import {
   Moon,
   ShieldCheck,
   Calculator,
+  CalendarDays,
 } from 'lucide-react';
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/clientes', icon: Users, label: 'Clientes' },
   { to: '/prestamos', icon: Banknote, label: 'Préstamos' },
   { to: '/mora', icon: AlertTriangle, label: 'Mora' },
+  { to: '/calendario', icon: CalendarDays, label: 'Calendario' },
 ];
 
 export default function Layout() {

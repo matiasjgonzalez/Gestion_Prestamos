@@ -16,6 +16,7 @@ const PrestamosPage = lazy(() => import('./pages/PrestamosPage'));
 const PrestamoDetailPage = lazy(() => import('./pages/PrestamoDetailPage'));
 const MoraPage = lazy(() => import('./pages/MoraPage'));
 const UsuariosPage = lazy(() => import('./pages/UsuariosPage'));
+const CalendarioPage = lazy(() => import('./pages/CalendarioPage'));
 
 function LoadingFallback() {
   return (
@@ -86,6 +87,7 @@ function AppRoutes() {
           <Route path="prestamos/:id" element={<PrestamoDetailPage />} />
           <Route path="mora" element={<MoraPage />} />
           <Route path="usuarios" element={<AdminRoute><UsuariosPage /></AdminRoute>} />
+          <Route path="calendario" element={<CalendarioPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

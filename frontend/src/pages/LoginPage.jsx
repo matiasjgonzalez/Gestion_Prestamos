@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { login } from '../services/api';
@@ -11,6 +11,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { saveToken } = useAuth();
   const navigate = useNavigate();
+
+  // Despertar el servidor en cuanto se carga la pantalla de login
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/ping`).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
