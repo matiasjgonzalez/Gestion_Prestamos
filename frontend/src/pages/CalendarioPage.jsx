@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCalendario, invalidateCache } from '../services/api';
 import toast from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, CalendarDays, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle } from 'lucide-react';
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MESES = [
@@ -46,6 +46,7 @@ export default function CalendarioPage() {
   const [diasData, setDiasData] = useState({});
   const [vencidasAnt, setVencidasAnt] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showVencidas, setShowVencidas] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -117,56 +118,75 @@ export default function CalendarioPage() {
         </div>
       </div>
 
-      {/* Vencidas de meses anteriores */}
+      {/* Vencidas de meses anteriores — acordeón */}
       {!loading && vencidasAnt.length > 0 && (
         <div style={{
-          background: 'var(--danger-muted)',
           border: '1px solid var(--danger)',
           borderRadius: 8,
-          padding: '12px 16px',
           marginBottom: 16,
+          overflow: 'hidden',
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            marginBottom: 8,
-            fontWeight: 600,
-            fontSize: '0.88rem',
-            color: 'var(--danger)',
-          }}>
-            <AlertTriangle size={15} />
-            Cuotas vencidas de meses anteriores
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {vencidasAnt.map(c => (
-              <div
-                key={c.cuota_id}
-                onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  padding: '4px 0',
-                  borderBottom: '1px solid var(--danger)',
-                  opacity: 0.9,
-                }}
-              >
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                  {c.cliente_nombre}
-                </span>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+          {/* Cabecera — siempre visible */}
+          <button
+            onClick={() => setShowVencidas(v => !v)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              background: 'var(--danger-muted)',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 600, fontSize: '0.85rem', color: 'var(--danger)' }}>
+              <AlertTriangle size={14} />
+              {vencidasAnt.length} cuota{vencidasAnt.length !== 1 ? 's' : ''} vencida{vencidasAnt.length !== 1 ? 's' : ''} de meses anteriores
+            </span>
+            <ChevronDown
+              size={16}
+              style={{
+                color: 'var(--danger)',
+                transform: showVencidas ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: '180ms ease',
+                flexShrink: 0,
+              }}
+            />
+          </button>
+
+          {/* Lista — solo visible si expandido */}
+          {showVencidas && (
+            <div style={{ background: 'var(--bg-card)', padding: '8px 14px' }}>
+              {vencidasAnt.map((c, i) => (
+                <div
+                  key={c.cuota_id}
+                  onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    padding: '7px 0',
+                    borderBottom: i < vencidasAnt.length - 1 ? '1px solid var(--border)' : 'none',
+                  }}
+                >
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                    {c.cliente_nombre}
                   </span>
-                  <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>
-                    #{c.numero_cuota}
-                  </span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                    </span>
+                    <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>
+                      #{c.numero_cuota}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
