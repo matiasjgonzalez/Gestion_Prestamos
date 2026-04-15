@@ -162,6 +162,10 @@ export const registrarPago = (data) => {
   return api.post('/pagos/', data);
 };
 
+// ─── Calendario ───
+export const getCalendario = (mes, anio) =>
+  cachedGet('/calendario', { mes, anio });
+
 // ─── Mora ───
 export const verificarMora = () => {
   invalidateCache('/mora');

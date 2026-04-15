@@ -9,7 +9,7 @@ from services.auth import get_current_user
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("")
 def get_calendario(
     mes: int = Query(..., ge=1, le=12),
     anio: int = Query(..., ge=2000),
@@ -32,6 +32,7 @@ def get_calendario(
             Cuota.fecha_vencimiento >= fecha_inicio,
             Cuota.fecha_vencimiento <= fecha_fin,
             Cuota.estado.in_(["pendiente", "vencida"]),
+            Prestamo.estado == "activo",
         )
         .order_by(Cuota.fecha_vencimiento, Cliente.apellido)
         .all()

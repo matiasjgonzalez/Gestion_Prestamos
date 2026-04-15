@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import { getCalendario, invalidateCache } from '../services/api';
 import toast from 'react-hot-toast';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
@@ -34,10 +34,11 @@ export default function CalendarioPage() {
 
   const loadCalendario = async () => {
     setLoading(true);
+    invalidateCache('/calendario');
     try {
-      const res = await api.get('/calendario/', { params: { mes, anio } });
-      setDiasData(res.data.dias);
-    } catch {
+      const res = await getCalendario(mes, anio);
+      setDiasData(res.data.dias || {});
+    } catch (err) {
       toast.error('Error al cargar el calendario');
     } finally {
       setLoading(false);
