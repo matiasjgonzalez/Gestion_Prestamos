@@ -354,7 +354,7 @@ def export_prestamos_xlsx(
     )
 
 
-@router.get("/", response_model=list[PrestamoRead])
+@router.get("/")
 def listar_prestamos(
     offset: int = 0,
     limit: int = 10,
@@ -365,7 +365,11 @@ def listar_prestamos(
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    q = db.query(Prestamo).join(Cliente, Prestamo.cliente_id == Cliente.id)
+    q = (
+        db.query(Prestamo)
+        .options(joinedload(Prestamo.cliente))
+        .join(Cliente, Prestamo.cliente_id == Cliente.id)
+    )
     if estado:
         q = q.filter(Prestamo.estado == estado)
     if cliente_id:
@@ -377,7 +381,23 @@ def listar_prestamos(
         q = q.filter(
             (Cliente.nombre + " " + Cliente.apellido).ilike(term)
         )
-    return q.order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
+    items = q.order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
+    return [
+        {
+            "id": p.id,
+            "cliente_id": p.cliente_id,
+            "cliente_nombre": f"{p.cliente.nombre} {p.cliente.apellido}" if p.cliente else "—",
+            "cliente_dni": p.cliente.dni if p.cliente else "—",
+            "monto": float(p.monto),
+            "interes_total": p.interes_total,
+            "cuotas": p.cuotas,
+            "monto_cuota": float(p.monto_cuota) if p.monto_cuota else None,
+            "fecha_inicio": p.fecha_inicio.isoformat() if p.fecha_inicio else None,
+            "estado": p.estado,
+            "tipo_prestamo": p.tipo_prestamo or "mensual",
+        }
+        for p in items
+    ]
 
 
 @router.get("/{prestamo_id}", response_model=PrestamoRead)

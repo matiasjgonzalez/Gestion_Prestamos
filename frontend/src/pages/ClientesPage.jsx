@@ -24,7 +24,7 @@ const emptyForm = {
 export default function ClientesPage() {
   const [clientes, setClientes] = useState([]);
   const [page, setPage] = useState(0);
-  const [pageSize] = useState(20);
+  const [pageSize] = useState(10);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [loading, setLoading] = useState(true);
@@ -165,11 +165,20 @@ export default function ClientesPage() {
 
       {loading ? (
         <SkeletonTable rows={6} cols={5} />
-      ) : clientes.length === 0 ? (
+      ) : clientes.length === 0 && page === 0 ? (
         <div className="empty-state">
           <Users size={40} />
           <h3>Sin clientes</h3>
           <p>Creá tu primer cliente para empezar</p>
+        </div>
+      ) : clientes.length === 0 ? (
+        <div className="empty-state">
+          <Users size={40} />
+          <h3>No hay más clientes</h3>
+          <p>Ya viste todos los clientes disponibles.</p>
+          <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={() => setPage(0)}>
+            Volver al inicio
+          </button>
         </div>
       ) : (
         <>
@@ -217,16 +226,16 @@ export default function ClientesPage() {
               </tbody>
             </table>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-            <div>
-              <button className="btn btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
                 Anterior
               </button>
-              <button className="btn btn-sm" onClick={() => setPage((p) => p + 1)} style={{ marginLeft: 8 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setPage((p) => p + 1)} disabled={clientes.length < pageSize}>
                 Siguiente
               </button>
             </div>
-            <div className="text-sm">Página {page + 1}</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Página {page + 1}</div>
           </div>
         </>
       )}

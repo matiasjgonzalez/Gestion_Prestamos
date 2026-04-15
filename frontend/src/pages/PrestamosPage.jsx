@@ -178,11 +178,6 @@ export default function PrestamosPage() {
     });
   };
 
-  const getClienteName = (clienteId) => {
-    const c = clientes.find((cl) => cl.id === clienteId);
-    return c ? `${c.nombre} ${c.apellido}` : `#${clienteId}`;
-  };
-
   return (
     <div>
       <div className="page-header">
@@ -238,8 +233,17 @@ export default function PrestamosPage() {
 
       {loading ? (
         <SkeletonTable rows={6} cols={8} />
-      ) : prestamos.length === 0 ? (
+      ) : prestamos.length === 0 && page === 0 ? (
         <div className="empty-state"><Banknote size={40} /><h3>Sin préstamos</h3><p>Creá un préstamo para empezar</p></div>
+      ) : prestamos.length === 0 ? (
+        <div className="empty-state">
+          <Banknote size={40} />
+          <h3>No hay más préstamos</h3>
+          <p>Ya viste todos los préstamos disponibles.</p>
+          <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={() => setPage(0)}>
+            Volver al inicio
+          </button>
+        </div>
       ) : (
         <>
           <div className="table-wrapper">
@@ -249,7 +253,10 @@ export default function PrestamosPage() {
                 {prestamos.map((p) => (
                   <tr key={p.id}>
                     <td className="text-mono">#{p.id}</td>
-                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{getClienteName(p.cliente_id)}</td>
+                    <td>
+                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{p.cliente_nombre || `#${p.cliente_id}`}</div>
+                      <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>DNI {p.cliente_dni}</div>
+                    </td>
                     <td className="text-mono">{formatMoney(p.monto)}</td>
                     <td>{p.interes_total}%</td>
                     <td>{p.cuotas}</td>

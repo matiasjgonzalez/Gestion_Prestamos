@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { getDashboard, getMora } from './services/api';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import Layout from './components/Layout';
+import ErrorBoundary from './components/ErrorBoundary';
 import { lazy, Suspense } from 'react';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -68,6 +69,7 @@ function ThemedToaster() {
 
 function AppRoutes() {
   return (
+    <ErrorBoundary>
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -92,6 +94,7 @@ function AppRoutes() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
+    </ErrorBoundary>
   );
 }
 

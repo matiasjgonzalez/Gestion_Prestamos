@@ -167,7 +167,14 @@ export default function PrestamoDetailPage() {
       <SkeletonTable rows={5} cols={5} />
     </div>
   );
-  if (!data) return null;
+  if (!data) return (
+    <div className="empty-state" style={{ marginTop: 60 }}>
+      <h3>Préstamo no encontrado</h3>
+      <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => navigate('/prestamos')}>
+        Volver a Préstamos
+      </button>
+    </div>
+  );
 
   const { prestamo, cliente, cuotas_rel, pagos, deuda_restante, total_cuotas, total_pagado } = data;
 
