@@ -66,11 +66,17 @@ export default function PrestamoDetailPage() {
   const handlePago = async (e) => {
     e.preventDefault();
     if (submitting) return;
+    const monto = parseFloat(pagoMonto);
+    if (!monto || monto <= 0) { toast.error('El monto debe ser mayor a 0'); return; }
+    if (monto > deuda_restante + 0.01) {
+      toast.error(`El monto supera la deuda restante (${formatMoney(deuda_restante)})`);
+      return;
+    }
     setSubmitting(true);
     try {
       await registrarPago({
         prestamo_id: parseInt(id),
-        monto_pagado: parseFloat(pagoMonto),
+        monto_pagado: monto,
         fecha_pago: pagoFecha ? new Date(pagoFecha).toISOString() : null,
       });
       toast.success('Pago registrado');
@@ -360,6 +366,7 @@ export default function PrestamoDetailPage() {
                 {prestamo.estado === 'activo' && (
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
+                      {c.estado !== 'pagada' && (
                       <button
                         className="btn-icon"
                         title="Editar fecha"
@@ -368,6 +375,7 @@ export default function PrestamoDetailPage() {
                       >
                         <Pencil size={13} />
                       </button>
+                      )}
                       {c.estado !== 'pagada' ? (
                         <button
                           className="btn-icon"
@@ -532,13 +540,19 @@ export default function PrestamoDetailPage() {
             <div className="form-group">
               <label>Fecha del Pago (opcional, por defecto hoy)</label>
               <input className="form-control" type="datetime-local" value={pagoFecha}
+                max={new Date().toISOString().slice(0, 16)}
                 onChange={(e) => setPagoFecha(e.target.value)} />
             </div>
             <div style={{
               background: 'var(--accent-muted)', borderRadius: 'var(--radius-sm)',
               padding: '12px 14px', fontSize: '0.82rem', color: 'var(--accent)', marginTop: 8,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
-              Deuda restante: <strong>{formatMoney(deuda_restante)}</strong>
+              <span>Deuda restante: <strong>{formatMoney(deuda_restante)}</strong></span>
+              <button type="button" style={{ fontSize: '0.78rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => setPagoMonto(String(deuda_restante))}>
+                Pagar todo
+              </button>
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setShowPagoModal(false)}>Cancelar</button>

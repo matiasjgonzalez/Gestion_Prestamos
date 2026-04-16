@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import date
 
 
 class CuotaInput(BaseModel):
     numero_cuota: int
     fecha_vencimiento: date
-    monto: float
+    monto: float = Field(..., gt=0, description="El monto de la cuota debe ser mayor a 0")
 
 
 class CuotaRead(BaseModel):

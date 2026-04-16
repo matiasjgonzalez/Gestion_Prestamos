@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getDashboard, invalidateCache } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { AlertTriangle, Filter, X, CalendarCheck, Clock } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
@@ -139,9 +140,15 @@ export default function DashboardPage() {
   };
 
   const aplicarFiltro = () => {
+    const desde = primerDiaDelMes(anioDesde, mesDesde);
+    const hasta = ultimoDiaDelMes(anioHasta, mesHasta);
+    if (desde > hasta) {
+      toast.error('La fecha "Desde" no puede ser posterior a "Hasta"');
+      return;
+    }
     setFiltroAplicado({
-      desde: primerDiaDelMes(anioDesde, mesDesde),
-      hasta: ultimoDiaDelMes(anioHasta, mesHasta),
+      desde,
+      hasta,
       labelDesde: `${MESES_LABEL[mesDesde - 1]} ${anioDesde}`,
       labelHasta: `${MESES_LABEL[mesHasta - 1]} ${anioHasta}`,
     });

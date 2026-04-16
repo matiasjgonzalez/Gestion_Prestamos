@@ -223,13 +223,14 @@ def marcar_cuota_pagada(
     )
     db.add(pago)
 
-    # Verificar si todas las cuotas están pagadas
+    # Verificar si todas las cuotas están pagadas (flush antes del count para incluir el cambio actual)
+    db.flush()
     no_pagadas = (
         db.query(Cuota)
         .filter(Cuota.prestamo_id == prestamo_id, Cuota.estado != "pagada")
         .count()
     )
-    if no_pagadas <= 1:  # la actual se está marcando
+    if no_pagadas == 0:
         prestamo = db.query(Prestamo).filter(Prestamo.id == prestamo_id).first()
         if prestamo:
             prestamo.estado = "finalizado"
@@ -463,9 +464,14 @@ def listar_prestamos(
     if tipo_prestamo:
         q = q.filter(Prestamo.tipo_prestamo == tipo_prestamo)
     if search:
-        term = f"%{search.lower()}%"
+        term = f"%{search}%"
+        from sqlalchemy import or_, cast as sa_cast, String
         q = q.filter(
-            (Cliente.nombre + " " + Cliente.apellido).ilike(term)
+            or_(
+                (Cliente.nombre + " " + Cliente.apellido).ilike(term),
+                Cliente.dni.ilike(term),
+                sa_cast(Prestamo.id, String).ilike(term),
+            )
         )
     items = q.order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
     return [

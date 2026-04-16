@@ -23,6 +23,20 @@ def registrar_pago(
     if prestamo.estado == "finalizado":
         raise HTTPException(status_code=400, detail="El préstamo ya está finalizado")
 
+    # Validar que el monto no supere la deuda restante
+    from models.cuota import Cuota as CuotaModel
+    from sqlalchemy import func as sf
+    deuda_restante = float(
+        db.query(sf.coalesce(sf.sum(CuotaModel.monto), 0))
+        .filter(CuotaModel.prestamo_id == prestamo.id, CuotaModel.estado.in_(["pendiente", "vencida"]))
+        .scalar()
+    )
+    if float(payload.monto_pagado) > deuda_restante + 0.01:  # +0.01 por redondeo
+        raise HTTPException(
+            status_code=400,
+            detail=f"El monto del pago (${float(payload.monto_pagado):,.2f}) supera la deuda restante (${deuda_restante:,.2f})"
+        )
+
     pago_fecha = payload.fecha_pago or datetime.now(timezone.utc)
     monto = float(payload.monto_pagado)
 
