@@ -294,7 +294,11 @@ export default function PrestamosPage() {
       )}
 
       {showModal && (
-        <Modal title="Nuevo Préstamo" onClose={() => setShowModal(false)} wide>
+        <Modal title="Nuevo Préstamo" onClose={() => {
+          const dirty = form.cliente_id || form.monto || form.interes_total;
+          if (dirty && !window.confirm('¿Descartar el préstamo sin guardar?')) return;
+          setShowModal(false);
+        }} wide>
           <form onSubmit={handleSubmit}>
 
             {/* Tipo de préstamo */}

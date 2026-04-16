@@ -112,6 +112,14 @@ export const desmarcarCuotaPagada = (prestamoId, cuotaId) => {
   return api.post(`/prestamos/${prestamoId}/cuotas/${cuotaId}/desmarcar-pagada`);
 };
 
+export const refinanciarPrestamo = (prestamoId, cuotasDetalle) => {
+  invalidateCache('/prestamos');
+  return api.post(`/prestamos/${prestamoId}/refinanciar`, { cuotas_detalle: cuotasDetalle });
+};
+
+export const downloadEstadoCuenta = (clienteId, nombreCliente) =>
+  downloadExcel(`/clientes/${clienteId}/estado-cuenta/xlsx`, `${nombreCliente}_estado_cuenta.xlsx`);
+
 export const cancelarPrestamo = (id) => {
   invalidateCache('/prestamos');
   return api.post(`/prestamos/${id}/cancelar`);

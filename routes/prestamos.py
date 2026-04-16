@@ -3,12 +3,13 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from typing import Optional
+from pydantic import BaseModel
+from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func as sqlfunc
+from sqlalchemy import func as sqlfunc, cast, extract, Date as SADate
 from database import get_db
 from schemas.prestamo import PrestamoCreate, PrestamoRead
-from schemas.cuota import CuotaRead, CuotaUpdate
+from schemas.cuota import CuotaRead, CuotaUpdate, CuotaInput
 from models.prestamo import Prestamo
 from models.cuota import Cuota
 from models.pago import Pago
@@ -16,7 +17,7 @@ from models.client import Cliente
 from services.prestamo_service import create_prestamo, calcular_deuda_restante
 from services.mora_service import obtener_cuotas_en_mora
 from services.auth import get_current_user
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 
 router = APIRouter()
 
@@ -28,12 +29,10 @@ def dashboard(
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    from sqlalchemy import cast, Date as SADate
-
-    # Querysets base con filtros de fecha aplicados
-    qp = db.query(Prestamo)
+    # ── Querysets con filtros opcionales ──
+    qp  = db.query(Prestamo)
     qpg = db.query(Pago)
-    qc = db.query(Cuota)
+    qc  = db.query(Cuota)
 
     if fecha_desde:
         qp  = qp.filter(Prestamo.fecha_inicio >= fecha_desde)
@@ -44,35 +43,65 @@ def dashboard(
         qpg = qpg.filter(cast(Pago.fecha_pago, SADate) <= fecha_hasta)
         qc  = qc.filter(Cuota.fecha_vencimiento <= fecha_hasta)
 
-    total_prestado = qp.with_entities(sqlfunc.coalesce(sqlfunc.sum(Prestamo.monto), 0)).scalar()
-    total_cobrado  = qpg.with_entities(sqlfunc.coalesce(sqlfunc.sum(Pago.monto_pagado), 0)).scalar()
+    total_prestado = float(qp.with_entities(sqlfunc.coalesce(sqlfunc.sum(Prestamo.monto), 0)).scalar())
+    total_cobrado  = float(qpg.with_entities(sqlfunc.coalesce(sqlfunc.sum(Pago.monto_pagado), 0)).scalar())
     deuda_total    = round(float(
         qc.filter(Cuota.estado.in_(["pendiente", "vencida"]))
-          .with_entities(sqlfunc.coalesce(sqlfunc.sum(Cuota.monto), 0))
-          .scalar()
+          .with_entities(sqlfunc.coalesce(sqlfunc.sum(Cuota.monto), 0)).scalar()
     ), 2)
-
     prestamos_activos = qp.filter(Prestamo.estado == "activo").count()
     clientes_count    = qp.with_entities(sqlfunc.count(sqlfunc.distinct(Prestamo.cliente_id))).scalar() or 0
 
-    tipos_rows = (
-        qp.with_entities(Prestamo.tipo_prestamo, sqlfunc.count(Prestamo.id))
-        .group_by(Prestamo.tipo_prestamo)
-        .all()
-    )
+    tipos_rows = qp.with_entities(Prestamo.tipo_prestamo, sqlfunc.count(Prestamo.id)).group_by(Prestamo.tipo_prestamo).all()
     prestamos_por_tipo = [{"tipo": t or "mensual", "cantidad": c} for t, c in tipos_rows]
 
-    estados_rows = (
-        qc.with_entities(Cuota.estado, sqlfunc.count(Cuota.id))
-        .group_by(Cuota.estado)
+    estados_rows = qc.with_entities(Cuota.estado, sqlfunc.count(Cuota.id)).group_by(Cuota.estado).all()
+    cuotas_por_estado = [{"estado": e, "cantidad": c} for e, c in estados_rows]
+
+    # ── Cobros de hoy y mañana (sin filtro de período) ──
+    hoy_d = date.today()
+
+    def _cuotas_dia(dia):
+        rows = (
+            db.query(Cuota, Prestamo, Cliente)
+            .join(Prestamo, Cuota.prestamo_id == Prestamo.id)
+            .join(Cliente, Prestamo.cliente_id == Cliente.id)
+            .filter(
+                Cuota.fecha_vencimiento == dia,
+                Cuota.estado.in_(["pendiente", "vencida"]),
+                Prestamo.estado == "activo",
+            )
+            .order_by(Cliente.apellido)
+            .all()
+        )
+        return [{"cuota_id": c.id, "prestamo_id": p.id, "numero_cuota": c.numero_cuota,
+                 "monto": float(c.monto), "estado": c.estado,
+                 "cliente_nombre": f"{cl.nombre} {cl.apellido}"} for c, p, cl in rows]
+
+    # ── Cobros por mes — últimos 12 meses ──
+    mes_i = hoy_d.month - 11
+    anio_i = hoy_d.year + (0 if mes_i > 0 else -1)
+    if mes_i <= 0:
+        mes_i += 12
+    inicio_12m = date(anio_i, mes_i, 1)
+
+    cobros_rows = (
+        db.query(
+            extract("year",  Pago.fecha_pago).label("anio"),
+            extract("month", Pago.fecha_pago).label("mes"),
+            sqlfunc.sum(Pago.monto_pagado).label("total"),
+        )
+        .filter(cast(Pago.fecha_pago, SADate) >= inicio_12m)
+        .group_by(extract("year", Pago.fecha_pago), extract("month", Pago.fecha_pago))
+        .order_by(extract("year", Pago.fecha_pago), extract("month", Pago.fecha_pago))
         .all()
     )
-    cuotas_por_estado = [{"estado": e, "cantidad": c} for e, c in estados_rows]
+    cobros_por_mes = [{"anio": int(r.anio), "mes": int(r.mes), "total": float(r.total)} for r in cobros_rows]
 
     mora_result = obtener_cuotas_en_mora(db, limit=100_000)
     return {
-        "total_prestado": float(total_prestado),
-        "total_cobrado": float(total_cobrado),
+        "total_prestado": total_prestado,
+        "total_cobrado": total_cobrado,
         "deuda_total": deuda_total,
         "prestamos_activos": prestamos_activos,
         "clientes_con_prestamos": clientes_count,
@@ -80,6 +109,9 @@ def dashboard(
         "cuotas_por_estado": cuotas_por_estado,
         "mora": {"total_en_mora": mora_result["total"], "cuotas": mora_result["cuotas"]},
         "filtrado": fecha_desde is not None or fecha_hasta is not None,
+        "cobros_hoy": _cuotas_dia(hoy_d),
+        "cobros_manana": _cuotas_dia(hoy_d + timedelta(days=1)),
+        "cobros_por_mes": cobros_por_mes,
     }
 
 
@@ -246,6 +278,45 @@ def desmarcar_cuota_pagada(
 
     db.commit()
     return {"ok": True, "message": f"Cuota #{cuota.numero_cuota} desmarcada"}
+
+
+class RefinanciarPayload(BaseModel):
+    cuotas_detalle: List[CuotaInput]
+
+
+@router.post("/{prestamo_id}/refinanciar")
+def refinanciar_prestamo(
+    prestamo_id: int,
+    payload: RefinanciarPayload,
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Agrega nuevas cuotas a un préstamo existente (extensión / refinanciación)."""
+    prestamo = db.query(Prestamo).filter(Prestamo.id == prestamo_id).first()
+    if not prestamo:
+        raise HTTPException(status_code=404, detail="Préstamo no encontrado")
+
+    max_num = (
+        db.query(sqlfunc.max(Cuota.numero_cuota))
+        .filter(Cuota.prestamo_id == prestamo_id)
+        .scalar() or 0
+    )
+
+    for i, det in enumerate(payload.cuotas_detalle):
+        db.add(Cuota(
+            prestamo_id=prestamo_id,
+            numero_cuota=max_num + i + 1,
+            fecha_vencimiento=det.fecha_vencimiento,
+            monto=det.monto,
+            estado="pendiente",
+        ))
+
+    prestamo.cuotas += len(payload.cuotas_detalle)
+    if prestamo.estado == "finalizado":
+        prestamo.estado = "activo"
+    db.add(prestamo)
+    db.commit()
+    return {"ok": True, "nuevas_cuotas": len(payload.cuotas_detalle), "total_cuotas": prestamo.cuotas}
 
 
 @router.post("/{prestamo_id}/cancelar")

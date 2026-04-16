@@ -253,7 +253,11 @@ export default function ClientesPage() {
       {showModal && (
         <Modal
           title={editingId ? 'Editar Cliente' : 'Nuevo Cliente'}
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            const dirty = form.nombre || form.apellido || form.dni || form.telefono || form.domicilio;
+            if (dirty && !window.confirm('¿Descartar cambios sin guardar?')) return;
+            setShowModal(false);
+          }}
         >
           <form onSubmit={handleSubmit}>
             <div className="form-row">

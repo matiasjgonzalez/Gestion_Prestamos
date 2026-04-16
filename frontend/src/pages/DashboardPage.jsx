@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { getDashboard, invalidateCache } from '../services/api';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Filter, X } from 'lucide-react';
+import { AlertTriangle, Filter, X, CalendarCheck, Clock } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
+
+const MESES_CORTO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 const COLORS_COBRADO = ['#16A34A', '#0284C7'];
 const COLORS_ESTADO  = ['#16A34A', '#D97706', '#E11D48'];
@@ -173,6 +175,15 @@ export default function DashboardPage() {
     { label: f ? 'Clientes del período'      : 'Clientes c/ Préstamos', value: data.clientes_con_prestamos,      colorClass: '' },
   ];
 
+  // Gráfico cobros últimos 12 meses — completar meses vacíos con 0
+  const cobrosMap = {};
+  (data.cobros_por_mes || []).forEach(r => { cobrosMap[`${r.anio}-${r.mes}`] = r.total; });
+  const cobrosChart = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - 11 + i, 1);
+    const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+    return { label: `${MESES_CORTO[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`, total: cobrosMap[key] || 0 };
+  });
+
   const cobradoData = [
     { name: 'Cobrado',   value: data.total_cobrado },
     { name: 'Pendiente', value: Math.max(0, data.deuda_total) },
@@ -250,6 +261,31 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Widget cobros del día */}
+      {!filtroAplicado && ((data.cobros_hoy?.length > 0) || (data.cobros_manana?.length > 0)) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          {[
+            { label: 'Cobros de hoy', items: data.cobros_hoy || [], icon: <CalendarCheck size={15}/>, color: 'var(--success)', bg: 'var(--success-muted)', border: 'var(--success)' },
+            { label: 'Cobros de mañana', items: data.cobros_manana || [], icon: <Clock size={15}/>, color: 'var(--accent)', bg: 'var(--accent-muted)', border: 'var(--accent)' },
+          ].map(({ label, items, icon, color, bg, border }) => items.length > 0 && (
+            <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: '0.82rem', color, marginBottom: 8 }}>
+                {icon}{label} ({items.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {items.map(c => (
+                  <div key={c.cuota_id} onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
+                    style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', fontSize: '0.82rem', padding: '2px 0' }}>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{c.cliente_nombre}</span>
+                    <span style={{ color, fontWeight: 600 }}>${Number(c.monto).toLocaleString('es-AR')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Stat cards */}
       <div className="card-grid">
         {stats.map((s, i) => (
@@ -259,6 +295,26 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Gráfico cobros por mes */}
+      {!filtroAplicado && cobrosChart.some(r => r.total > 0) && (
+        <div className="chart-card" style={{ marginBottom: 16 }}>
+          <div className="chart-title">Cobros últimos 12 meses</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={cobrosChart} barSize={22}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} width={55} />
+              <Tooltip
+                formatter={(v) => [`$${Number(v).toLocaleString('es-AR')}`, 'Cobrado']}
+                contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: '0.8rem' }}
+                cursor={{ fill: 'var(--accent-muted)' }}
+              />
+              <Bar dataKey="total" fill="#0284C7" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Charts */}
       <div className="charts-grid">

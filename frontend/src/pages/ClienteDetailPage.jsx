@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCliente, getPrestamos, getClienteResumen } from '../services/api';
-import { ArrowLeft, Banknote, AlertTriangle, Phone, MapPin } from 'lucide-react';
+import { getCliente, getPrestamos, getClienteResumen, downloadEstadoCuenta } from '../services/api';
+import { ArrowLeft, Banknote, AlertTriangle, Phone, MapPin, Download } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
@@ -17,6 +17,7 @@ export default function ClienteDetailPage() {
   const [prestamos, setPrestamos] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -56,12 +57,27 @@ export default function ClienteDetailPage() {
             <span className="text-sm text-muted">DNI {cliente.dni}</span>
           </div>
         </div>
-        {resumen?.tiene_mora && (
-          <span className="badge badge-danger" style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
-            <AlertTriangle size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
-            En mora
-          </span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {resumen?.tiene_mora && (
+            <span className="badge badge-danger" style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
+              <AlertTriangle size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+              En mora
+            </span>
+          )}
+          <button
+            className="btn btn-secondary btn-sm"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try { await downloadEstadoCuenta(id, `${cliente.apellido}_${cliente.nombre}`); }
+              catch { }
+              finally { setExporting(false); }
+            }}
+          >
+            <Download size={14} />
+            {exporting ? 'Exportando...' : 'Estado de Cuenta'}
+          </button>
+        </div>
       </div>
 
       {/* Info del cliente */}

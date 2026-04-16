@@ -7,12 +7,13 @@ import {
   desmarcarCuotaPagada,
   cancelarPrestamo,
   updateCuota,
+  refinanciarPrestamo,
   invalidateCache,
 } from '../services/api';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, Pencil, RotateCcw } from 'lucide-react';
+import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, Pencil, RotateCcw, GitMerge, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
@@ -35,7 +36,12 @@ export default function PrestamoDetailPage() {
   const [pagoMonto, setPagoMonto] = useState('');
   const [pagoFecha, setPagoFecha] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
-  const [editCuota, setEditCuota] = useState(null); // {id, numero_cuota, fecha_vencimiento}
+  const [editCuota, setEditCuota] = useState(null); // {id, numero_cuota, fecha_vencimiento, _original}
+  const [showAllCuotas, setShowAllCuotas] = useState(false);
+  const [showRefinanciarModal, setShowRefinanciarModal] = useState(false);
+  const [refForm, setRefForm] = useState({ numCuotas: '1', montoPorCuota: '', fechaInicio: '', tipo: 'mensual' });
+  const [refFechas, setRefFechas] = useState(['']);
+  const CUOTAS_PAGE = 10;
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -139,6 +145,67 @@ export default function PrestamoDetailPage() {
     }
   };
 
+  const TIPO_DIAS = { semanal: 7, quincenal: 15, mensual: null };
+  const addInterval = (dateStr, tipo, n) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    if (tipo === 'mensual') d.setMonth(d.getMonth() + n);
+    else d.setDate(d.getDate() + TIPO_DIAS[tipo] * n);
+    return d.toISOString().split('T')[0];
+  };
+
+  const openRefinanciar = () => {
+    if (!data) return;
+    const sorted = [...data.cuotas_rel].sort((a, b) => a.numero_cuota - b.numero_cuota);
+    const lastCuota = sorted[sorted.length - 1];
+    const avgMonto = sorted.length > 0 ? Math.round(sorted.reduce((s, c) => s + Number(c.monto), 0) / sorted.length) : '';
+    const tipo = data.prestamo.tipo_prestamo || 'mensual';
+    const fechaInicio = lastCuota ? addInterval(lastCuota.fecha_vencimiento, tipo, 1) : '';
+    setRefForm({ numCuotas: '1', montoPorCuota: String(avgMonto), fechaInicio, tipo });
+    setRefFechas(fechaInicio ? [fechaInicio] : ['']);
+    setShowRefinanciarModal(true);
+  };
+
+  const handleRefNumCuotas = (val) => {
+    const n = Math.max(1, parseInt(val) || 1);
+    setRefForm((f) => ({ ...f, numCuotas: String(n) }));
+    if (refForm.fechaInicio) {
+      setRefFechas(Array.from({ length: n }, (_, i) => addInterval(refForm.fechaInicio, refForm.tipo, i)));
+    } else {
+      setRefFechas(Array.from({ length: n }, () => ''));
+    }
+  };
+
+  const handleRefFechaInicio = (val) => {
+    const n = Math.max(1, parseInt(refForm.numCuotas) || 1);
+    setRefForm((f) => ({ ...f, fechaInicio: val }));
+    if (val) setRefFechas(Array.from({ length: n }, (_, i) => addInterval(val, refForm.tipo, i)));
+  };
+
+  const handleRefinanciar = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    const n = parseInt(refForm.numCuotas) || 0;
+    if (n < 1 || !refForm.montoPorCuota || refFechas.some((f) => !f)) {
+      toast.error('Completá todos los campos'); return;
+    }
+    setSubmitting(true);
+    try {
+      const cuotasDetalle = refFechas.map((fecha, i) => ({
+        numero_cuota: i + 1,
+        fecha_vencimiento: fecha,
+        monto: parseFloat(refForm.montoPorCuota),
+      }));
+      await refinanciarPrestamo(id, cuotasDetalle);
+      toast.success(`${n} cuota${n > 1 ? 's' : ''} agregada${n > 1 ? 's' : ''} al préstamo`);
+      setShowRefinanciarModal(false);
+      reload();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al refinanciar');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleCancelar = () => {
     if (submitting) return;
     setConfirmModal({
@@ -195,12 +262,15 @@ export default function PrestamoDetailPage() {
           </div>
         </div>
         {prestamo.estado === 'activo' && (
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={() => setShowPagoModal(true)} disabled={submitting}>
               <DollarSign size={16} />Registrar Pago
             </button>
+            <button className="btn btn-secondary" onClick={openRefinanciar} disabled={submitting} title="Agregar cuotas al préstamo">
+              <GitMerge size={16} />Refinanciar
+            </button>
             <button className="btn btn-secondary" onClick={handleCancelar} disabled={submitting} title="Marcar todo como pagado">
-              <CheckCircle size={16} />Cancelar Préstamo
+              <CheckCircle size={16} />Cancelar
             </button>
           </div>
         )}
@@ -248,9 +318,16 @@ export default function PrestamoDetailPage() {
       </div>
 
       {/* Cuotas */}
-      <h3 style={{ marginBottom: 12, fontSize: '1.05rem' }}>
-        <Calendar size={16} style={{ marginRight: 6, verticalAlign: -2 }} />Cuotas
-      </h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
+          <Calendar size={16} style={{ marginRight: 6, verticalAlign: -2 }} />Cuotas ({cuotas_rel.length})
+        </h3>
+        {cuotas_rel.length > CUOTAS_PAGE && (
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowAllCuotas((v) => !v)}>
+            {showAllCuotas ? <><ChevronUp size={13} /> Ver menos</> : <><ChevronDown size={13} /> Ver todas ({cuotas_rel.length})</>}
+          </button>
+        )}
+      </div>
       <div className="table-wrapper mb-16">
         <table>
           <thead>
@@ -263,7 +340,7 @@ export default function PrestamoDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {cuotas_rel.map((c) => {
+            {(showAllCuotas ? cuotas_rel : cuotas_rel.slice(0, CUOTAS_PAGE)).map((c) => {
               const parcial = c.estado !== 'pagada' && c.monto_efectivo != null && c.monto_efectivo < c.monto && c.monto_efectivo > 0;
               return (
               <tr key={c.id}>
@@ -286,7 +363,7 @@ export default function PrestamoDetailPage() {
                       <button
                         className="btn-icon"
                         title="Editar fecha"
-                        onClick={() => setEditCuota({ id: c.id, numero_cuota: c.numero_cuota, fecha_vencimiento: c.fecha_vencimiento })}
+                        onClick={() => setEditCuota({ id: c.id, numero_cuota: c.numero_cuota, fecha_vencimiento: c.fecha_vencimiento, _original: c.fecha_vencimiento })}
                         disabled={submitting}
                       >
                         <Pencil size={13} />
@@ -366,7 +443,12 @@ export default function PrestamoDetailPage() {
 
       {/* Modal editar cuota */}
       {editCuota && (
-        <Modal title={`Editar Cuota #${editCuota.numero_cuota}`} onClose={() => setEditCuota(null)}>
+        <Modal title={`Editar Cuota #${editCuota.numero_cuota}`} onClose={() => {
+          if (editCuota.fecha_vencimiento !== editCuota._original) {
+            if (!window.confirm('¿Descartar cambios?')) return;
+          }
+          setEditCuota(null);
+        }}>
           <form onSubmit={handleEditCuota}>
             <div className="form-group">
               <label>Fecha de Vencimiento</label>
@@ -383,6 +465,55 @@ export default function PrestamoDetailPage() {
               <button type="button" className="btn btn-secondary" onClick={() => setEditCuota(null)}>Cancelar</button>
               <button type="submit" className="btn btn-primary" disabled={submitting}>
                 {submitting ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Modal refinanciar */}
+      {showRefinanciarModal && (
+        <Modal title="Refinanciar Préstamo" onClose={() => setShowRefinanciarModal(false)}>
+          <form onSubmit={handleRefinanciar}>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+              Se agregarán nuevas cuotas al préstamo existente.
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Cantidad de cuotas</label>
+                <input className="form-control no-spinner" type="number" min="1" value={refForm.numCuotas}
+                  onChange={(e) => handleRefNumCuotas(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>Monto por cuota</label>
+                <input className="form-control no-spinner" type="number" min="1" step="0.01" value={refForm.montoPorCuota}
+                  onChange={(e) => setRefForm((f) => ({ ...f, montoPorCuota: e.target.value }))} required />
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Fecha primera cuota</label>
+              <input className="form-control" type="date" value={refForm.fechaInicio}
+                onChange={(e) => handleRefFechaInicio(e.target.value)} required />
+            </div>
+            {refFechas.length > 0 && refForm.montoPorCuota && (
+              <div className="cuotas-fechas-section">
+                <label className="cuotas-fechas-label">Fechas de vencimiento</label>
+                <div className="cuotas-fechas-grid">
+                  {refFechas.map((fecha, idx) => (
+                    <div key={idx} className="cuota-fecha-row">
+                      <span className="cuota-num">#{idx + 1}</span>
+                      <input className="form-control date-input" type="date" value={fecha}
+                        onChange={(e) => setRefFechas((prev) => prev.map((f, i) => i === idx ? e.target.value : f))} required />
+                      <span className="cuota-monto-display">${Number(refForm.montoPorCuota).toLocaleString('es-AR')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowRefinanciarModal(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Guardando...' : 'Agregar cuotas'}
               </button>
             </div>
           </form>

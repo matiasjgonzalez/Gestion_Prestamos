@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Calculadora from './Calculadora';
+import GlobalSearch from './GlobalSearch';
 import {
   LayoutDashboard,
   Users,
@@ -15,7 +16,7 @@ import {
   Calculator,
   CalendarDays,
   MoreHorizontal,
-  X,
+  Search,
 } from 'lucide-react';
 
 const navItems = [
@@ -35,6 +36,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const [showCalc, setShowCalc] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -75,6 +77,12 @@ export default function Layout() {
             </NavLink>
           )}
         </nav>
+        <div style={{ padding: '0 12px 4px' }}>
+          <button className="sidebar-link" onClick={() => setShowSearch(true)}>
+            <Search />
+            Buscar
+          </button>
+        </div>
         <div style={{ padding: '0 12px 8px' }}>
           <button className="sidebar-link" onClick={() => setShowCalc(true)}>
             <Calculator />
@@ -98,6 +106,7 @@ export default function Layout() {
       </main>
 
       {showCalc && <Calculadora onClose={() => setShowCalc(false)} />}
+      {showSearch && <GlobalSearch onClose={() => setShowSearch(false)} />}
 
       {/* Bottom nav — mobile */}
       <nav className="bottom-nav">
@@ -145,6 +154,14 @@ export default function Layout() {
               <CalendarDays size={20} />
               Calendario
             </NavLink>
+
+            <button
+              className="bottom-sheet-item"
+              onClick={() => { setShowSearch(true); closeMore(); }}
+            >
+              <Search size={20} />
+              Buscar
+            </button>
 
             <button
               className="bottom-sheet-item"

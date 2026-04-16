@@ -1063,3 +1063,106 @@ select.form-control { cursor: pointer; }
   .calendario-grid div > div:first-child { font-size: 0.68rem !important; }
   .calendario-grid div > div[style*="0.65rem"] { font-size: 0.58rem !important; padding: 1px 3px !important; }
 }
+
+/* ─── Global Search ─── */
+.gsearch-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 500;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
+}
+
+.gsearch-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 540px;
+  overflow: hidden;
+}
+
+.gsearch-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.gsearch-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: var(--font-body);
+}
+
+.gsearch-input::placeholder { color: var(--text-muted); }
+
+.gsearch-status {
+  padding: 20px 16px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.gsearch-results {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.gsearch-section {
+  padding: 4px 0;
+}
+
+.gsearch-section + .gsearch-section {
+  border-top: 1px solid var(--border);
+}
+
+.gsearch-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.gsearch-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-body);
+  transition: background var(--transition);
+}
+
+.gsearch-item:hover { background: var(--bg-secondary); }
+
+.gsearch-item-name {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.gsearch-item-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
