@@ -485,6 +485,22 @@ select.form-control { cursor: pointer; }
   margin-bottom: 28px;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loginShake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-8px); }
+  40%       { transform: translateX(8px); }
+  60%       { transform: translateX(-5px); }
+  80%       { transform: translateX(5px); }
+}
+
+.login-shake {
+  animation: loginShake 0.45s ease;
+}
+
 /* ─── Empty state ─── */
 .empty-state {
   text-align: center;
