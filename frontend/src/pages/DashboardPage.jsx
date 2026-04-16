@@ -111,24 +111,24 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Filtro: por defecto sin filtro (null)
-  const [filtroActivo, setFiltroActivo] = useState(false);
-  const [mesDesde, setMesDesde] = useState(hoy.getMonth() + 1);
+  // UI state (lo que el usuario está seleccionando)
+  const [mesDesde, setMesDesde]   = useState(hoy.getMonth() + 1);
   const [anioDesde, setAnioDesde] = useState(ANIO_ACTUAL);
-  const [mesHasta, setMesHasta] = useState(hoy.getMonth() + 1);
+  const [mesHasta, setMesHasta]   = useState(hoy.getMonth() + 1);
   const [anioHasta, setAnioHasta] = useState(ANIO_ACTUAL);
 
-  useEffect(() => { loadData(); }, [filtroActivo, mesDesde, anioDesde, mesHasta, anioHasta]);
+  // Filtro aplicado (null = sin filtro, objeto = filtro activo)
+  const [filtroAplicado, setFiltroAplicado] = useState(null);
 
-  const loadData = async () => {
+  useEffect(() => { loadData(filtroAplicado); }, [filtroAplicado]);
+
+  const loadData = async (filtro) => {
     setLoading(true);
     invalidateCache('/prestamos/dashboard');
     try {
-      const params = {};
-      if (filtroActivo) {
-        params.fecha_desde = primerDiaDelMes(anioDesde, mesDesde);
-        params.fecha_hasta = ultimoDiaDelMes(anioHasta, mesHasta);
-      }
+      const params = filtro
+        ? { fecha_desde: filtro.desde, fecha_hasta: filtro.hasta }
+        : {};
       const res = await getDashboard(params);
       setData(res.data);
     } catch {
@@ -138,11 +138,19 @@ export default function DashboardPage() {
     }
   };
 
-  const aplicarFiltro = () => setFiltroActivo(true);
-  const limpiarFiltro = () => setFiltroActivo(false);
+  const aplicarFiltro = () => {
+    setFiltroAplicado({
+      desde: primerDiaDelMes(anioDesde, mesDesde),
+      hasta: ultimoDiaDelMes(anioHasta, mesHasta),
+      labelDesde: `${MESES_LABEL[mesDesde - 1]} ${anioDesde}`,
+      labelHasta: `${MESES_LABEL[mesHasta - 1]} ${anioHasta}`,
+    });
+  };
 
-  const rangoLabel = filtroActivo
-    ? `${MESES_LABEL[mesDesde - 1]} ${anioDesde} — ${MESES_LABEL[mesHasta - 1]} ${anioHasta}`
+  const limpiarFiltro = () => setFiltroAplicado(null);
+
+  const rangoLabel = filtroAplicado
+    ? `${filtroAplicado.labelDesde} — ${filtroAplicado.labelHasta}`
     : null;
 
   if (loading) return (
@@ -156,12 +164,13 @@ export default function DashboardPage() {
 
   const moraData = data.mora;
 
+  const f = !!filtroAplicado;
   const stats = [
-    { label: filtroActivo ? 'Prestado en el período' : 'Total Prestado',    value: formatMoney(data.total_prestado), colorClass: '' },
-    { label: filtroActivo ? 'Cobrado en el período'  : 'Total Cobrado',     value: formatMoney(data.total_cobrado),  colorClass: 'success' },
-    { label: filtroActivo ? 'Deuda pendiente'        : 'Deuda Total',       value: formatMoney(data.deuda_total),    colorClass: 'accent' },
-    { label: filtroActivo ? 'Préstamos del período'  : 'Préstamos Activos', value: data.prestamos_activos,           colorClass: '' },
-    { label: filtroActivo ? 'Clientes del período'   : 'Clientes c/ Préstamos', value: data.clientes_con_prestamos,  colorClass: '' },
+    { label: f ? 'Prestado en el período'    : 'Total Prestado',        value: formatMoney(data.total_prestado), colorClass: '' },
+    { label: f ? 'Cobrado en el período'     : 'Total Cobrado',         value: formatMoney(data.total_cobrado),  colorClass: 'success' },
+    { label: f ? 'Deuda pendiente'           : 'Deuda Total',           value: formatMoney(data.deuda_total),    colorClass: 'accent' },
+    { label: f ? 'Préstamos del período'     : 'Préstamos Activos',     value: data.prestamos_activos,           colorClass: '' },
+    { label: f ? 'Clientes del período'      : 'Clientes c/ Préstamos', value: data.clientes_con_prestamos,      colorClass: '' },
   ];
 
   const cobradoData = [
@@ -232,7 +241,7 @@ export default function DashboardPage() {
             <Filter size={14} />
             Filtrar
           </button>
-          {filtroActivo && (
+          {filtroAplicado && (
             <button className="btn btn-secondary btn-sm" onClick={limpiarFiltro}>
               <X size={14} />
               Ver todo

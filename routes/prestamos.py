@@ -28,60 +28,42 @@ def dashboard(
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    filtrado = fecha_desde is not None or fecha_hasta is not None
+    from sqlalchemy import cast, Date as SADate
 
-    def pf(q):
-        """Filtra préstamos por fecha_inicio dentro del rango."""
-        if fecha_desde:
-            q = q.filter(Prestamo.fecha_inicio >= fecha_desde)
-        if fecha_hasta:
-            q = q.filter(Prestamo.fecha_inicio <= fecha_hasta)
-        return q
+    # Querysets base con filtros de fecha aplicados
+    qp = db.query(Prestamo)
+    qpg = db.query(Pago)
+    qc = db.query(Cuota)
 
-    def pgf(q):
-        """Filtra pagos por fecha_pago dentro del rango."""
-        if fecha_desde:
-            q = q.filter(sqlfunc.date(Pago.fecha_pago) >= fecha_desde)
-        if fecha_hasta:
-            q = q.filter(sqlfunc.date(Pago.fecha_pago) <= fecha_hasta)
-        return q
+    if fecha_desde:
+        qp  = qp.filter(Prestamo.fecha_inicio >= fecha_desde)
+        qpg = qpg.filter(cast(Pago.fecha_pago, SADate) >= fecha_desde)
+        qc  = qc.filter(Cuota.fecha_vencimiento >= fecha_desde)
+    if fecha_hasta:
+        qp  = qp.filter(Prestamo.fecha_inicio <= fecha_hasta)
+        qpg = qpg.filter(cast(Pago.fecha_pago, SADate) <= fecha_hasta)
+        qc  = qc.filter(Cuota.fecha_vencimiento <= fecha_hasta)
 
-    def cf(q):
-        """Filtra cuotas por fecha_vencimiento dentro del rango."""
-        if fecha_desde:
-            q = q.filter(Cuota.fecha_vencimiento >= fecha_desde)
-        if fecha_hasta:
-            q = q.filter(Cuota.fecha_vencimiento <= fecha_hasta)
-        return q
+    total_prestado = qp.with_entities(sqlfunc.coalesce(sqlfunc.sum(Prestamo.monto), 0)).scalar()
+    total_cobrado  = qpg.with_entities(sqlfunc.coalesce(sqlfunc.sum(Pago.monto_pagado), 0)).scalar()
+    deuda_total    = round(float(
+        qc.filter(Cuota.estado.in_(["pendiente", "vencida"]))
+          .with_entities(sqlfunc.coalesce(sqlfunc.sum(Cuota.monto), 0))
+          .scalar()
+    ), 2)
 
-    total_prestado = pf(db.query(sqlfunc.sum(Prestamo.monto))).scalar() or 0
-    total_cobrado  = pgf(db.query(sqlfunc.sum(Pago.monto_pagado))).scalar() or 0
-
-    # Deuda: cuotas pendientes/vencidas en el período
-    deuda_total = round(
-        float(cf(db.query(sqlfunc.sum(Cuota.monto)).filter(
-            Cuota.estado.in_(["pendiente", "vencida"])
-        )).scalar() or 0),
-        2,
-    )
-
-    prestamos_activos = pf(
-        db.query(sqlfunc.count(Prestamo.id)).filter(Prestamo.estado == "activo")
-    ).scalar() or 0
-
-    clientes_count = pf(
-        db.query(sqlfunc.count(sqlfunc.distinct(Prestamo.cliente_id)))
-    ).scalar() or 0
+    prestamos_activos = qp.filter(Prestamo.estado == "activo").count()
+    clientes_count    = qp.with_entities(sqlfunc.count(sqlfunc.distinct(Prestamo.cliente_id))).scalar() or 0
 
     tipos_rows = (
-        pf(db.query(Prestamo.tipo_prestamo, sqlfunc.count(Prestamo.id)))
+        qp.with_entities(Prestamo.tipo_prestamo, sqlfunc.count(Prestamo.id))
         .group_by(Prestamo.tipo_prestamo)
         .all()
     )
     prestamos_por_tipo = [{"tipo": t or "mensual", "cantidad": c} for t, c in tipos_rows]
 
     estados_rows = (
-        cf(db.query(Cuota.estado, sqlfunc.count(Cuota.id)))
+        qc.with_entities(Cuota.estado, sqlfunc.count(Cuota.id))
         .group_by(Cuota.estado)
         .all()
     )
@@ -97,7 +79,7 @@ def dashboard(
         "prestamos_por_tipo": prestamos_por_tipo,
         "cuotas_por_estado": cuotas_por_estado,
         "mora": {"total_en_mora": mora_result["total"], "cuotas": mora_result["cuotas"]},
-        "filtrado": filtrado,
+        "filtrado": fecha_desde is not None or fecha_hasta is not None,
     }
 
 
