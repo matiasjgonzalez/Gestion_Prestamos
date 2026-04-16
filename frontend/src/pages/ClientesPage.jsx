@@ -5,11 +5,12 @@ import {
   createCliente,
   updateCliente,
   deleteCliente,
+  downloadExcel,
 } from '../services/api';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { Plus, Search, Pencil, Trash2, Eye, Users } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, Users, Download } from 'lucide-react';
 import { useDebounce } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
 
@@ -19,6 +20,7 @@ const emptyForm = {
   dni: '',
   telefono: '',
   domicilio: '',
+  empleo: '',
 };
 
 export default function ClientesPage() {
@@ -73,6 +75,7 @@ export default function ClientesPage() {
       dni: c.dni,
       telefono: c.telefono || '',
       domicilio: c.domicilio || '',
+      empleo: c.empleo || '',
     });
     setErrors({});
     setShowModal(true);
@@ -147,10 +150,14 @@ export default function ClientesPage() {
     <div>
       <div className="page-header">
         <h2>Clientes</h2>
-        <button className="btn btn-primary" onClick={openCreate}>
-          <Plus size={16} />
-          Nuevo Cliente
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => downloadExcel('/clientes/export/xlsx', 'clientes.xlsx')}>
+            <Download size={16} />Exportar Excel
+          </button>
+          <button className="btn btn-primary" onClick={openCreate}>
+            <Plus size={16} />Nuevo Cliente
+          </button>
+        </div>
       </div>
 
       <div className="search-bar">
@@ -283,9 +290,15 @@ export default function ClientesPage() {
                 <input className="form-control" value={form.telefono} onChange={handleChange('telefono')} />
               </div>
             </div>
-            <div className="form-group">
-              <label>Domicilio</label>
-              <input className="form-control" value={form.domicilio} onChange={handleChange('domicilio')} />
+            <div className="form-row">
+              <div className="form-group">
+                <label>Domicilio</label>
+                <input className="form-control" value={form.domicilio} onChange={handleChange('domicilio')} placeholder="Calle, número..." />
+              </div>
+              <div className="form-group">
+                <label>Empleo / Ocupación</label>
+                <input className="form-control" value={form.empleo} onChange={handleChange('empleo')} placeholder="Ej: Empleado, Comerciante..." />
+              </div>
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>

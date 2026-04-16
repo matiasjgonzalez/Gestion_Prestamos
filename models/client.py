@@ -13,6 +13,7 @@ class Cliente(Base):
     dni = Column(String(50), unique=True, nullable=False, index=True)
     telefono = Column(String(50), nullable=True)
     domicilio = Column(String(250), nullable=True)
+    empleo = Column(String(250), nullable=True)
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
 
     prestamos = relationship(

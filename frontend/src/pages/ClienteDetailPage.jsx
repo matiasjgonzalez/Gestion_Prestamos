@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getCliente, getPrestamos, getClienteResumen, downloadEstadoCuenta } from '../services/api';
-import { ArrowLeft, Banknote, AlertTriangle, Phone, MapPin, Download } from 'lucide-react';
+import { ArrowLeft, Banknote, AlertTriangle, Phone, MapPin, Download, Briefcase } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
@@ -99,6 +99,14 @@ export default function ClienteDetailPage() {
             <span>
               {cliente.domicilio
                 ? <><MapPin size={13} style={{ marginRight: 4, verticalAlign: -1 }} />{cliente.domicilio}</>
+                : '—'}
+            </span>
+          </div>
+          <div className="detail-item">
+            <label>Empleo / Ocupación</label>
+            <span>
+              {cliente.empleo
+                ? <><Briefcase size={13} style={{ marginRight: 4, verticalAlign: -1 }} />{cliente.empleo}</>
                 : '—'}
             </span>
           </div>

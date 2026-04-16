@@ -9,6 +9,7 @@ class ClienteBase(BaseModel):
     dni: str
     telefono: Optional[str] = None
     domicilio: Optional[str] = None
+    empleo: Optional[str] = None
 
 
 class ClienteCreate(ClienteBase):
@@ -28,3 +29,4 @@ class ClienteUpdate(BaseModel):
     apellido: Optional[str] = None
     telefono: Optional[str] = None
     domicilio: Optional[str] = None
+    empleo: Optional[str] = None
