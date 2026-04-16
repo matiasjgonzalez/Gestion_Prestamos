@@ -100,7 +100,7 @@ export const deletePrestamo = (id) => {
   return api.delete(`/prestamos/${id}`);
 };
 
-export const getDashboard = () => cachedGet('/prestamos/dashboard');
+export const getDashboard = (params = {}) => cachedGet('/prestamos/dashboard', params);
 
 export const marcarCuotaPagada = (prestamoId, cuotaId) => {
   invalidateCache('/prestamos');

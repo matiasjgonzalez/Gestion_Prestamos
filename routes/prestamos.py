@@ -23,33 +23,65 @@ router = APIRouter()
 
 @router.get("/dashboard")
 def dashboard(
+    fecha_desde: Optional[date] = Query(None),
+    fecha_hasta: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    total_prestado = db.query(sqlfunc.sum(Prestamo.monto)).scalar() or 0
-    total_cobrado = db.query(sqlfunc.sum(Pago.monto_pagado)).scalar() or 0
-    total_cuotas = db.query(sqlfunc.sum(Cuota.monto)).scalar() or 0
-    deuda_total = round(float(total_cuotas) - float(total_cobrado), 2)
-    prestamos_activos = (
-        db.query(sqlfunc.count(Prestamo.id))
-        .filter(Prestamo.estado == "activo")
-        .scalar() or 0
-    )
-    clientes_count = (
-        db.query(sqlfunc.count(sqlfunc.distinct(Prestamo.cliente_id))).scalar() or 0
+    filtrado = fecha_desde is not None or fecha_hasta is not None
+
+    def pf(q):
+        """Filtra préstamos por fecha_inicio dentro del rango."""
+        if fecha_desde:
+            q = q.filter(Prestamo.fecha_inicio >= fecha_desde)
+        if fecha_hasta:
+            q = q.filter(Prestamo.fecha_inicio <= fecha_hasta)
+        return q
+
+    def pgf(q):
+        """Filtra pagos por fecha_pago dentro del rango."""
+        if fecha_desde:
+            q = q.filter(sqlfunc.date(Pago.fecha_pago) >= fecha_desde)
+        if fecha_hasta:
+            q = q.filter(sqlfunc.date(Pago.fecha_pago) <= fecha_hasta)
+        return q
+
+    def cf(q):
+        """Filtra cuotas por fecha_vencimiento dentro del rango."""
+        if fecha_desde:
+            q = q.filter(Cuota.fecha_vencimiento >= fecha_desde)
+        if fecha_hasta:
+            q = q.filter(Cuota.fecha_vencimiento <= fecha_hasta)
+        return q
+
+    total_prestado = pf(db.query(sqlfunc.sum(Prestamo.monto))).scalar() or 0
+    total_cobrado  = pgf(db.query(sqlfunc.sum(Pago.monto_pagado))).scalar() or 0
+
+    # Deuda: cuotas pendientes/vencidas en el período
+    deuda_total = round(
+        float(cf(db.query(sqlfunc.sum(Cuota.monto)).filter(
+            Cuota.estado.in_(["pendiente", "vencida"])
+        )).scalar() or 0),
+        2,
     )
 
-    # Préstamos por tipo
+    prestamos_activos = pf(
+        db.query(sqlfunc.count(Prestamo.id)).filter(Prestamo.estado == "activo")
+    ).scalar() or 0
+
+    clientes_count = pf(
+        db.query(sqlfunc.count(sqlfunc.distinct(Prestamo.cliente_id)))
+    ).scalar() or 0
+
     tipos_rows = (
-        db.query(Prestamo.tipo_prestamo, sqlfunc.count(Prestamo.id))
+        pf(db.query(Prestamo.tipo_prestamo, sqlfunc.count(Prestamo.id)))
         .group_by(Prestamo.tipo_prestamo)
         .all()
     )
     prestamos_por_tipo = [{"tipo": t or "mensual", "cantidad": c} for t, c in tipos_rows]
 
-    # Cuotas por estado
     estados_rows = (
-        db.query(Cuota.estado, sqlfunc.count(Cuota.id))
+        cf(db.query(Cuota.estado, sqlfunc.count(Cuota.id)))
         .group_by(Cuota.estado)
         .all()
     )
@@ -65,6 +97,7 @@ def dashboard(
         "prestamos_por_tipo": prestamos_por_tipo,
         "cuotas_por_estado": cuotas_por_estado,
         "mora": {"total_en_mora": mora_result["total"], "cuotas": mora_result["cuotas"]},
+        "filtrado": filtrado,
     }
 
 

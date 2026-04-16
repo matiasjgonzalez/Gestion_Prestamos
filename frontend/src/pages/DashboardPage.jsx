@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getDashboard } from '../services/api';
+import { getDashboard, invalidateCache } from '../services/api';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Filter, X } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 import {
@@ -15,6 +15,21 @@ const COLORS_TIPO    = ['#0284C7', '#7C3AED', '#D97706'];
 
 const ESTADO_LABEL = { pagada: 'Pagadas', pendiente: 'Pendientes', vencida: 'Vencidas' };
 const TIPO_LABEL   = { semanal: 'Semanal', quincenal: 'Quincenal', mensual: 'Mensual' };
+const MESES_LABEL  = [
+  'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre',
+];
+
+const hoy = new Date();
+const ANIO_ACTUAL = hoy.getFullYear();
+const ANIOS = Array.from({ length: ANIO_ACTUAL - 2022 }, (_, i) => 2023 + i).concat([ANIO_ACTUAL, ANIO_ACTUAL + 1]);
+
+function primerDiaDelMes(anio, mes) {
+  return `${anio}-${String(mes).padStart(2, '0')}-01`;
+}
+function ultimoDiaDelMes(anio, mes) {
+  return new Date(anio, mes, 0).toISOString().split('T')[0];
+}
 
 function CustomTooltipMoney({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -48,19 +63,6 @@ function CustomTooltipCount({ active, payload }) {
   );
 }
 
-function DonutCenter({ cx, cy, total }) {
-  return (
-    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
-      <tspan x={cx} dy="-8" style={{ fontSize: 22, fontWeight: 700, fill: 'var(--text-primary)' }}>
-        {total}
-      </tspan>
-      <tspan x={cx} dy="22" style={{ fontSize: 11, fill: 'var(--text-muted)' }}>
-        total
-      </tspan>
-    </text>
-  );
-}
-
 function renderEstadoLegend(estadosData, total) {
   const colorMap = { Pagadas: '#16A34A', Pendientes: '#D97706', Vencidas: '#E11D48' };
   return (
@@ -76,23 +78,72 @@ function renderEstadoLegend(estadosData, total) {
   );
 }
 
+function MonthYearSelect({ label, mes, anio, onMes, onAnio }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</span>
+      <select
+        className="form-control filter-select"
+        value={mes}
+        onChange={(e) => onMes(parseInt(e.target.value))}
+        style={{ minWidth: 110 }}
+      >
+        {MESES_LABEL.map((m, i) => (
+          <option key={i + 1} value={i + 1}>{m}</option>
+        ))}
+      </select>
+      <select
+        className="form-control filter-select"
+        value={anio}
+        onChange={(e) => onAnio(parseInt(e.target.value))}
+        style={{ minWidth: 80 }}
+      >
+        {ANIOS.map((a) => (
+          <option key={a} value={a}>{a}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => { loadData(); }, []);
+  // Filtro: por defecto sin filtro (null)
+  const [filtroActivo, setFiltroActivo] = useState(false);
+  const [mesDesde, setMesDesde] = useState(hoy.getMonth() + 1);
+  const [anioDesde, setAnioDesde] = useState(ANIO_ACTUAL);
+  const [mesHasta, setMesHasta] = useState(hoy.getMonth() + 1);
+  const [anioHasta, setAnioHasta] = useState(ANIO_ACTUAL);
+
+  useEffect(() => { loadData(); }, [filtroActivo, mesDesde, anioDesde, mesHasta, anioHasta]);
 
   const loadData = async () => {
+    setLoading(true);
+    invalidateCache('/prestamos/dashboard');
     try {
-      const res = await getDashboard();
+      const params = {};
+      if (filtroActivo) {
+        params.fecha_desde = primerDiaDelMes(anioDesde, mesDesde);
+        params.fecha_hasta = ultimoDiaDelMes(anioHasta, mesHasta);
+      }
+      const res = await getDashboard(params);
       setData(res.data);
     } catch {
-      // silently fail — dashboard is non-critical
+      // silently fail
     } finally {
       setLoading(false);
     }
   };
+
+  const aplicarFiltro = () => setFiltroActivo(true);
+  const limpiarFiltro = () => setFiltroActivo(false);
+
+  const rangoLabel = filtroActivo
+    ? `${MESES_LABEL[mesDesde - 1]} ${anioDesde} — ${MESES_LABEL[mesHasta - 1]} ${anioHasta}`
+    : null;
 
   if (loading) return (
     <div>
@@ -106,26 +157,23 @@ export default function DashboardPage() {
   const moraData = data.mora;
 
   const stats = [
-    { label: 'Total Prestado',        value: formatMoney(data.total_prestado), colorClass: '' },
-    { label: 'Total Cobrado',         value: formatMoney(data.total_cobrado),  colorClass: 'success' },
-    { label: 'Deuda Total',           value: formatMoney(data.deuda_total),    colorClass: 'accent' },
-    { label: 'Préstamos Activos',     value: data.prestamos_activos,           colorClass: '' },
-    { label: 'Clientes c/ Préstamos', value: data.clientes_con_prestamos,      colorClass: '' },
+    { label: filtroActivo ? 'Prestado en el período' : 'Total Prestado',    value: formatMoney(data.total_prestado), colorClass: '' },
+    { label: filtroActivo ? 'Cobrado en el período'  : 'Total Cobrado',     value: formatMoney(data.total_cobrado),  colorClass: 'success' },
+    { label: filtroActivo ? 'Deuda pendiente'        : 'Deuda Total',       value: formatMoney(data.deuda_total),    colorClass: 'accent' },
+    { label: filtroActivo ? 'Préstamos del período'  : 'Préstamos Activos', value: data.prestamos_activos,           colorClass: '' },
+    { label: filtroActivo ? 'Clientes del período'   : 'Clientes c/ Préstamos', value: data.clientes_con_prestamos,  colorClass: '' },
   ];
 
-  // Donut cobrado vs pendiente
   const cobradoData = [
     { name: 'Cobrado',   value: data.total_cobrado },
     { name: 'Pendiente', value: Math.max(0, data.deuda_total) },
   ];
 
-  // Donut cuotas por estado
   const estadosData = (data.cuotas_por_estado || [])
     .sort((a, b) => ['pagada','pendiente','vencida'].indexOf(a.estado) - ['pagada','pendiente','vencida'].indexOf(b.estado))
     .map((r) => ({ name: ESTADO_LABEL[r.estado] ?? r.estado, value: r.cantidad }));
   const totalCuotas = estadosData.reduce((s, r) => s + r.value, 0);
 
-  // Barras préstamos por tipo
   const tiposData = (data.prestamos_por_tipo || []).map((r) => ({
     tipo: TIPO_LABEL[r.tipo] ?? r.tipo,
     cantidad: r.cantidad,
@@ -133,7 +181,65 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="page-header"><h2>Dashboard</h2></div>
+      <div className="page-header">
+        <h2>Dashboard</h2>
+        {rangoLabel && (
+          <span style={{
+            fontSize: '0.82rem',
+            color: 'var(--accent)',
+            background: 'var(--accent-muted)',
+            border: '1px solid var(--accent)',
+            borderRadius: 20,
+            padding: '3px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}>
+            <Filter size={12} />
+            {rangoLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Filtro rango */}
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)',
+        padding: '12px 16px',
+        marginBottom: 16,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        flexWrap: 'wrap',
+      }}>
+        <MonthYearSelect
+          label="Desde"
+          mes={mesDesde}
+          anio={anioDesde}
+          onMes={setMesDesde}
+          onAnio={setAnioDesde}
+        />
+        <MonthYearSelect
+          label="Hasta"
+          mes={mesHasta}
+          anio={anioHasta}
+          onMes={setMesHasta}
+          onAnio={setAnioHasta}
+        />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-primary btn-sm" onClick={aplicarFiltro}>
+            <Filter size={14} />
+            Filtrar
+          </button>
+          {filtroActivo && (
+            <button className="btn btn-secondary btn-sm" onClick={limpiarFiltro}>
+              <X size={14} />
+              Ver todo
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Stat cards */}
       <div className="card-grid">
@@ -148,23 +254,17 @@ export default function DashboardPage() {
       {/* Charts */}
       <div className="charts-grid">
 
-        {/* Donut cobrado vs pendiente */}
         <div className="chart-card">
           <div className="chart-title">Cobrado vs Pendiente</div>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
                 data={cobradoData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={3}
-                dataKey="value"
+                cx="50%" cy="50%"
+                innerRadius={60} outerRadius={90}
+                paddingAngle={3} dataKey="value"
               >
-                {cobradoData.map((_, i) => (
-                  <Cell key={i} fill={COLORS_COBRADO[i]} />
-                ))}
+                {cobradoData.map((_, i) => <Cell key={i} fill={COLORS_COBRADO[i]} />)}
               </Pie>
               <Tooltip content={<CustomTooltipMoney />} />
               <Legend iconType="circle" iconSize={10} />
@@ -172,7 +272,6 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Donut cuotas por estado */}
         <div className="chart-card">
           <div className="chart-title">Cuotas por Estado</div>
           {estadosData.length === 0 ? (
@@ -183,12 +282,9 @@ export default function DashboardPage() {
                 <PieChart>
                   <Pie
                     data={estadosData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={58}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    dataKey="value"
+                    cx="50%" cy="50%"
+                    innerRadius={58} outerRadius={85}
+                    paddingAngle={3} dataKey="value"
                   >
                     {estadosData.map((entry, i) => {
                       const colorMap = { Pagadas: '#16A34A', Pendientes: '#D97706', Vencidas: '#E11D48' };
@@ -207,7 +303,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Barras préstamos por tipo */}
         <div className="chart-card">
           <div className="chart-title">Préstamos por Tipo</div>
           {tiposData.length === 0 ? (
@@ -220,9 +315,7 @@ export default function DashboardPage() {
                 <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltipCount />} cursor={{ fill: 'var(--accent-muted)' }} />
                 <Bar dataKey="cantidad" radius={[4, 4, 0, 0]}>
-                  {tiposData.map((_, i) => (
-                    <Cell key={i} fill={COLORS_TIPO[i % 3]} />
-                  ))}
+                  {tiposData.map((_, i) => <Cell key={i} fill={COLORS_TIPO[i % 3]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
