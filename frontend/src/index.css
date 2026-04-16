@@ -82,6 +82,7 @@
 /* ─── Reset ─── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body, #root { height: 100%; }
+html { height: -webkit-fill-available; }
 
 body {
   font-family: var(--font-body);
@@ -93,7 +94,11 @@ body {
 }
 
 /* ─── Layout ─── */
-.app-layout { display: flex; height: 100vh; }
+.app-layout {
+  display: flex;
+  height: 100vh;
+  height: 100dvh; /* dynamic viewport en mobile (descuenta barra del navegador) */
+}
 
 .sidebar {
   width: 260px;
@@ -455,11 +460,12 @@ select.form-control { cursor: pointer; }
 
 /* ─── Login ─── */
 .login-container {
-  height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-login);
+  padding: 20px 0;
 }
 
 .login-box {
@@ -936,6 +942,33 @@ select.form-control { cursor: pointer; }
   color: var(--text-primary);
 }
 
+/* ─── Dashboard filter bar ─── */
+.dashboard-filter-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ─── Dashboard month/year selector ─── */
+.month-year-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.month-year-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.month-year-select .filter-select:first-of-type { min-width: 110px; }
+.month-year-select .filter-select:last-of-type  { min-width: 80px; }
+
 /* ─── Bottom navigation (mobile) ─── */
 .bottom-nav {
   display: none;
@@ -1048,17 +1081,147 @@ select.form-control { cursor: pointer; }
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
-  .sidebar { display: none; }
-  .bottom-nav { display: flex; }
-  .main-content { padding: 20px 16px 80px; }
-  .form-row, .form-row-3 { grid-template-columns: 1fr; }
-  .charts-grid { grid-template-columns: 1fr; }
-  .card-grid { grid-template-columns: 1fr; }
-  .table-wrapper { overflow-x: auto; }
-  .btn { padding: 12px 16px; }
-  .modal { margin: 16px; max-height: calc(100vh - 80px); }
 
-  /* Calendario mobile */
+  /* ── Layout ── */
+  .sidebar { display: none; }
+  .bottom-nav {
+    display: flex;
+    height: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .main-content {
+    padding: 16px 14px calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ── iOS: evitar auto-zoom en inputs (se activa si font-size < 16px) ── */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* ── Tipografía y page headers ── */
+  .page-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+    align-items: flex-start;
+  }
+  .page-header h2 { font-size: 1.15rem; }
+
+  /* ── Botones: tamaño razonable (no 12px 16px que es enorme) ── */
+  .btn { padding: 9px 14px; font-size: 0.82rem; gap: 6px; }
+  .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+
+  /* ── Stat cards: 2 columnas aprovechan mejor el espacio ── */
+  .card-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-card { padding: 14px 12px; }
+  .stat-card .stat-value { font-size: 1.1rem; }
+  .stat-card .stat-label { font-size: 0.68rem; }
+
+  /* ── Formularios ── */
+  .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  .filter-bar { gap: 8px; }
+  .filter-select { min-width: 120px; width: auto; }
+
+  /* ── Tablas ── */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  th { padding: 10px; font-size: 0.65rem; }
+  td { padding: 10px; font-size: 0.8rem; }
+
+  /* ── Charts ── */
+  .charts-grid { grid-template-columns: 1fr; gap: 12px; }
+
+  /* ── Modal → bottom sheet en mobile ── */
+  .modal-overlay { align-items: flex-end; }
+  .modal {
+    margin: 0;
+    border-radius: 16px 16px 0 0;
+    max-height: 90vh;
+    width: 100%;
+    padding: 0 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .modal::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 10px auto 16px;
+  }
+  .modal-header { margin-bottom: 14px; }
+  /* Confirm modal: también bottom sheet pero compacto */
+  .confirm-modal {
+    border-radius: 16px 16px 0 0;
+    padding: 0 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    max-width: 100%;
+  }
+  .confirm-modal::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 10px auto 16px;
+  }
+  .confirm-modal-icon { margin-bottom: 12px; }
+
+  /* ── Login ── */
+  .login-box {
+    max-width: 100%;
+    margin: 0 12px;
+    padding: 28px 20px calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ── Detail grid: 2 columnas ── */
+  .detail-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── Cobros widget (dashboard) ── */
+  .cobros-widget {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Dashboard filter: apilar en 2 filas ── */
+  .dashboard-filter-bar { gap: 10px; padding: 12px; }
+  .month-year-select { flex: 1; min-width: 0; }
+  .month-year-select .filter-select { flex: 1; min-width: 0 !important; }
+  .month-year-label { min-width: 40px; }
+
+  /* ── Cuotas fechas ── */
+  .cuota-monto-display { min-width: 72px; font-size: 0.75rem; }
+
+  /* ── Global search → bottom sheet ── */
+  .gsearch-overlay { padding-top: 0; align-items: flex-end; }
+  .gsearch-modal {
+    border-radius: 16px 16px 0 0;
+    max-height: 85vh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .gsearch-input-row { padding: 14px 14px 10px; }
+  .gsearch-input-row::before {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+  }
+  .gsearch-input-row { position: relative; padding-top: 20px; }
+
+  /* ── Calendario ── */
   .calendario-grid div { min-height: 52px !important; padding: 3px !important; }
   .calendario-grid div > div:first-child { font-size: 0.68rem !important; }
   .calendario-grid div > div[style*="0.65rem"] { font-size: 0.58rem !important; padding: 1px 3px !important; }

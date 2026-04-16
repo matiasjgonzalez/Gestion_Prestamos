@@ -82,13 +82,12 @@ function renderEstadoLegend(estadosData, total) {
 
 function MonthYearSelect({ label, mes, anio, onMes, onAnio }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</span>
+    <div className="month-year-select">
+      <span className="month-year-label">{label}</span>
       <select
         className="form-control filter-select"
         value={mes}
         onChange={(e) => onMes(parseInt(e.target.value))}
-        style={{ minWidth: 110 }}
       >
         {MESES_LABEL.map((m, i) => (
           <option key={i + 1} value={i + 1}>{m}</option>
@@ -98,7 +97,6 @@ function MonthYearSelect({ label, mes, anio, onMes, onAnio }) {
         className="form-control filter-select"
         value={anio}
         onChange={(e) => onAnio(parseInt(e.target.value))}
-        style={{ minWidth: 80 }}
       >
         {ANIOS.map((a) => (
           <option key={a} value={a}>{a}</option>
@@ -222,17 +220,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Filtro rango */}
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
-        padding: '12px 16px',
-        marginBottom: 16,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        flexWrap: 'wrap',
-      }}>
+      <div className="dashboard-filter-bar">
         <MonthYearSelect
           label="Desde"
           mes={mesDesde}
@@ -263,7 +251,7 @@ export default function DashboardPage() {
 
       {/* Widget cobros del día */}
       {!filtroAplicado && ((data.cobros_hoy?.length > 0) || (data.cobros_manana?.length > 0)) && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div className="cobros-widget" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16 }}>
           {[
             { label: 'Cobros de hoy', items: data.cobros_hoy || [], icon: <CalendarCheck size={15}/>, color: 'var(--success)', bg: 'var(--success-muted)', border: 'var(--success)' },
             { label: 'Cobros de mañana', items: data.cobros_manana || [], icon: <Clock size={15}/>, color: 'var(--accent)', bg: 'var(--accent-muted)', border: 'var(--accent)' },
