@@ -197,6 +197,7 @@ export default function ClientesPage() {
                   <th>DNI</th>
                   <th>Teléfono</th>
                   <th>Domicilio</th>
+                  <th>Empleo</th>
                   <th>Mora</th>
                   <th style={{ width: 120 }}>Acciones</th>
                 </tr>
@@ -210,6 +211,7 @@ export default function ClientesPage() {
                     <td className="text-mono">{c.dni}</td>
                     <td>{c.telefono || '—'}</td>
                     <td>{c.domicilio || '—'}</td>
+                    <td>{c.empleo || '—'}</td>
                     <td>
                       {c.tiene_mora
                         ? <span className="badge badge-danger">En mora</span>
