@@ -204,7 +204,7 @@ export default function ClientesPage() {
               </thead>
               <tbody>
                 {clientes.map((c) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/clientes/${c.id}`)}>
                     <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                       {c.nombre} {c.apellido}
                     </td>
@@ -217,7 +217,7 @@ export default function ClientesPage() {
                         ? <span className="badge badge-danger">En mora</span>
                         : <span className="badge badge-success">Al día</span>}
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn-icon" title="Ver" onClick={() => navigate(`/clientes/${c.id}`)}>
                           <Eye size={15} />

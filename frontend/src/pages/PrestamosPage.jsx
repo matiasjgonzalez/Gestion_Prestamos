@@ -251,7 +251,7 @@ export default function PrestamosPage() {
               <thead><tr><th>ID</th><th>Cliente</th><th>Monto</th><th>Interés</th><th>Cuotas</th><th>Fecha Inicio</th><th>Estado</th><th style={{ width: 100 }}>Acciones</th></tr></thead>
               <tbody>
                 {prestamos.map((p) => (
-                  <tr key={p.id}>
+                  <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/prestamos/${p.id}`)}>
                     <td className="text-mono">#{p.id}</td>
                     <td>
                       <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{p.cliente_nombre || `#${p.cliente_id}`}</div>
@@ -259,10 +259,23 @@ export default function PrestamosPage() {
                     </td>
                     <td className="text-mono">{formatMoney(p.monto)}</td>
                     <td>{p.interes_total}%</td>
-                    <td>{p.cuotas}</td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <span style={{ fontSize: '0.8rem' }}>{p.cuotas_pagadas ?? 0}/{p.cuotas_total ?? p.cuotas}</span>
+                        <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, width: 56 }}>
+                          <div style={{
+                            height: '100%',
+                            background: p.cuotas_pagadas === (p.cuotas_total ?? p.cuotas) ? 'var(--success)' : 'var(--accent)',
+                            borderRadius: 2,
+                            width: `${p.cuotas_total ? Math.round((p.cuotas_pagadas / p.cuotas_total) * 100) : 0}%`,
+                            transition: 'width 0.3s',
+                          }} />
+                        </div>
+                      </div>
+                    </td>
                     <td>{p.fecha_inicio || '—'}</td>
                     <td>{estadoBadge(p.estado)}</td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn-icon" title="Ver detalle" onClick={() => navigate(`/prestamos/${p.id}`)}><Eye size={15} /></button>
                         <button className="btn-icon" title="Eliminar" onClick={() => handleDelete(p.id)} style={{ color: 'var(--danger)' }}><Trash2 size={15} /></button>

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func as sqlfunc
 from database import get_db
 from schemas.pago import PagoCreate, PagoRead
 from models.pago import Pago
@@ -24,11 +25,9 @@ def registrar_pago(
         raise HTTPException(status_code=400, detail="El préstamo ya está finalizado")
 
     # Validar que el monto no supere la deuda restante
-    from models.cuota import Cuota as CuotaModel
-    from sqlalchemy import func as sf
     deuda_restante = float(
-        db.query(sf.coalesce(sf.sum(CuotaModel.monto), 0))
-        .filter(CuotaModel.prestamo_id == prestamo.id, CuotaModel.estado.in_(["pendiente", "vencida"]))
+        db.query(sqlfunc.coalesce(sqlfunc.sum(Cuota.monto), 0))
+        .filter(Cuota.prestamo_id == prestamo.id, Cuota.estado.in_(["pendiente", "vencida"]))
         .scalar()
     )
     if float(payload.monto_pagado) > deuda_restante + 0.01:  # +0.01 por redondeo

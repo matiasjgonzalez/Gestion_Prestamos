@@ -1,7 +1,9 @@
 from datetime import date
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func as sqlfunc, or_
 from models.cuota import Cuota
 from models.prestamo import Prestamo
+from models.client import Cliente
 
 
 def verificar_mora(db: Session) -> list[dict]:
@@ -10,6 +12,7 @@ def verificar_mora(db: Session) -> list[dict]:
     Retorna las que acaba de actualizar.
     """
     hoy = date.today()
+    # Fetch first para poder retornar los datos
     cuotas = (
         db.query(Cuota)
         .filter(Cuota.estado == "pendiente", Cuota.fecha_vencimiento < hoy)
@@ -18,10 +21,11 @@ def verificar_mora(db: Session) -> list[dict]:
     if not cuotas:
         return []
 
-    ids = [c.id for c in cuotas]
-    db.query(Cuota).filter(Cuota.id.in_(ids)).update(
-        {"estado": "vencida"}, synchronize_session=False
-    )
+    # UPDATE directo sin construir lista de IDs intermedia (#9)
+    db.query(Cuota).filter(
+        Cuota.estado == "pendiente",
+        Cuota.fecha_vencimiento < hoy,
+    ).update({"estado": "vencida"}, synchronize_session=False)
     db.commit()
 
     return [
@@ -44,26 +48,49 @@ def obtener_cuotas_en_mora(
     offset: int = 0,
 ) -> dict:
     """
-    Retorna las cuotas en mora paginadas, con búsqueda por nombre de cliente.
+    Retorna las cuotas en mora paginadas. Busca por nombre o DNI (#5).
+    Usa queries separadas para count/sum y datos para evitar conflicto
+    entre joinedload y with_entities (#11).
     """
-    from models.client import Cliente
     hoy = date.today()
-    q = (
-        db.query(Cuota)
-        .options(joinedload(Cuota.prestamo).joinedload(Prestamo.cliente))
-        .join(Cuota.prestamo)
-        .join(Prestamo.cliente)
-        .filter(Cuota.estado == "vencida")
-    )
+
+    # Filtros base reutilizables
+    filters = [Cuota.estado == "vencida"]
     if search:
-        term = f"%{search.lower()}%"
-        q = q.filter(
-            (Cliente.nombre + " " + Cliente.apellido).ilike(term)
+        term = f"%{search}%"
+        filters.append(
+            or_(
+                (Cliente.nombre + " " + Cliente.apellido).ilike(term),
+                Cliente.dni.ilike(term),
+            )
         )
-    from sqlalchemy import func as sqlfunc
-    total = q.count()
-    total_monto = q.with_entities(sqlfunc.sum(Cuota.monto)).scalar() or 0
-    cuotas = q.order_by(Cuota.fecha_vencimiento).offset(offset).limit(limit).all()
+
+    def _base_q():
+        return (
+            db.query(Cuota)
+            .join(Cuota.prestamo)
+            .join(Prestamo.cliente)
+            .filter(*filters)
+        )
+
+    # Count y sum en queries limpias sin joinedload (#11)
+    total = _base_q().count()
+    total_monto = (
+        _base_q()
+        .with_entities(sqlfunc.coalesce(sqlfunc.sum(Cuota.monto), 0))
+        .scalar()
+    )
+
+    # Query de datos con joinedload para evitar N+1
+    cuotas = (
+        _base_q()
+        .options(joinedload(Cuota.prestamo).joinedload(Prestamo.cliente))
+        .order_by(Cuota.fecha_vencimiento)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
     items = [
         {
             "cuota_id": c.id,
@@ -72,8 +99,14 @@ def obtener_cuotas_en_mora(
             "fecha_vencimiento": c.fecha_vencimiento.isoformat(),
             "monto": float(c.monto),
             "dias_atraso": (hoy - c.fecha_vencimiento).days,
-            "cliente_nombre": f"{c.prestamo.cliente.nombre} {c.prestamo.cliente.apellido}" if c.prestamo and c.prestamo.cliente else None,
-            "cliente_dni": c.prestamo.cliente.dni if c.prestamo and c.prestamo.cliente else None,
+            "cliente_nombre": (
+                f"{c.prestamo.cliente.nombre} {c.prestamo.cliente.apellido}"
+                if c.prestamo and c.prestamo.cliente else None
+            ),
+            "cliente_dni": (
+                c.prestamo.cliente.dni
+                if c.prestamo and c.prestamo.cliente else None
+            ),
         }
         for c in cuotas
     ]

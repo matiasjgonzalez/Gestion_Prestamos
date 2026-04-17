@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCalendario, invalidateCache } from '../services/api';
 import toast from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, EyeOff } from 'lucide-react';
+import { formatMoney } from '../utils/helpers';
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MESES = [
@@ -47,6 +48,7 @@ export default function CalendarioPage() {
   const [vencidasAnt, setVencidasAnt] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showVencidas, setShowVencidas] = useState(false);
+  const [ocultarPagadas, setOcultarPagadas] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -89,6 +91,20 @@ export default function CalendarioPage() {
 
   const totalCuotasMes = Object.values(diasData).reduce((s, arr) => s + arr.length, 0);
 
+  // Stats del mes: cuotas pendientes/vencidas y su monto total
+  const cuotasPendientesMes = Object.values(diasData)
+    .flat()
+    .filter(c => c.estado !== 'pagada');
+  const montoPendienteMes = cuotasPendientesMes.reduce((s, c) => s + (c.monto || 0), 0);
+
+  // Días filtrados según toggle "ocultar pagadas"
+  const diasFiltrados = Object.fromEntries(
+    Object.entries(diasData).map(([dia, cuotas]) => [
+      dia,
+      ocultarPagadas ? cuotas.filter(c => c.estado !== 'pagada') : cuotas,
+    ]).filter(([, cuotas]) => cuotas.length > 0)
+  );
+
   return (
     <div>
       {/* Header */}
@@ -97,23 +113,27 @@ export default function CalendarioPage() {
           <CalendarDays size={20} style={{ marginRight: 8, verticalAlign: -2 }} />
           Calendario de Pagos
         </h2>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {!loading && vencidasAnt.length > 0 && (
-            <span style={{
-              color: 'var(--danger)',
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}>
+            <span style={{ color: 'var(--danger)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 4 }}>
               <AlertTriangle size={14} />
-              {vencidasAnt.length} vencida{vencidasAnt.length !== 1 ? 's' : ''} de meses anteriores
+              {vencidasAnt.length} vencida{vencidasAnt.length !== 1 ? 's' : ''} anteriores
+            </span>
+          )}
+          {!loading && cuotasPendientesMes.length > 0 && (
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+              {cuotasPendientesMes.length} pendiente{cuotasPendientesMes.length !== 1 ? 's' : ''} · <strong style={{ color: 'var(--text-primary)' }}>{formatMoney(montoPendienteMes)}</strong>
             </span>
           )}
           {!loading && totalCuotasMes > 0 && (
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              {totalCuotasMes} cuota{totalCuotasMes !== 1 ? 's' : ''} este mes
-            </span>
+            <button
+              className={`btn btn-sm ${ocultarPagadas ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setOcultarPagadas(v => !v)}
+              title={ocultarPagadas ? 'Mostrar pagadas' : 'Ocultar pagadas'}
+            >
+              <EyeOff size={13} />
+              {ocultarPagadas ? 'Mostrando solo pendientes' : 'Ocultar pagadas'}
+            </button>
           )}
         </div>
       </div>
@@ -233,7 +253,8 @@ export default function CalendarioPage() {
           {Array.from({ length: filas * 7 }).map((_, idx) => {
             const dia = idx - offset + 1;
             const valido = dia >= 1 && dia <= totalDias;
-            const cuotas = valido ? (diasData[dia] || []) : [];
+            const cuotas = valido ? (diasFiltrados[dia] || []) : [];
+            const montoDelDia = cuotas.filter(c => c.estado !== 'pagada').reduce((s, c) => s + (c.monto || 0), 0);
 
             return (
               <div key={idx} style={{
@@ -298,6 +319,19 @@ export default function CalendarioPage() {
                         +{cuotas.length - 3} más
                       </div>
                     )}
+
+                    {/* Monto total pendiente del día */}
+                    {montoDelDia > 0 && (
+                      <div style={{
+                        fontSize: '0.62rem',
+                        color: 'var(--accent)',
+                        fontWeight: 600,
+                        paddingLeft: 2,
+                        marginTop: 'auto',
+                      }}>
+                        {formatMoney(montoDelDia)}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -327,78 +361,102 @@ export default function CalendarioPage() {
       </div>
 
       {/* Detalle del mes */}
-      {!loading && totalCuotasMes > 0 && (
+      {!loading && Object.keys(diasFiltrados).length > 0 && (
         <div style={{ marginTop: 24 }}>
           <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 10 }}>
             Detalle del mes
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {Object.entries(diasData)
+            {Object.entries(diasFiltrados)
               .sort(([a], [b]) => parseInt(a) - parseInt(b))
-              .map(([dia, cuotas]) => (
-                <div key={dia} style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 12,
-                }}>
-                  <div style={{
-                    minWidth: 36,
-                    textAlign: 'center',
-                    fontSize: '1.2rem',
-                    fontWeight: 700,
-                    color: 'var(--accent)',
-                    lineHeight: 1,
-                    paddingTop: 2,
+              .map(([dia, cuotas]) => {
+                const montoTotal = cuotas.filter(c => c.estado !== 'pagada').reduce((s, c) => s + (c.monto || 0), 0);
+                return (
+                  <div key={dia} style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 12,
                   }}>
-                    {dia}
-                    <div style={{ fontSize: '0.62rem', fontWeight: 400, color: 'var(--text-muted)' }}>
-                      {MESES[mes - 1].slice(0, 3).toUpperCase()}
+                    <div style={{
+                      minWidth: 36,
+                      textAlign: 'center',
+                      fontSize: '1.2rem',
+                      fontWeight: 700,
+                      color: 'var(--accent)',
+                      lineHeight: 1,
+                      paddingTop: 2,
+                    }}>
+                      {dia}
+                      <div style={{ fontSize: '0.62rem', fontWeight: 400, color: 'var(--text-muted)' }}>
+                        {MESES[mes - 1].slice(0, 3).toUpperCase()}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {cuotas.map(c => (
-                      <div
-                        key={c.cuota_id}
-                        onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                          padding: '2px 0',
-                        }}
-                      >
-                        <span style={{
-                          fontSize: '0.85rem',
-                          color: c.estado === 'pagada' ? 'var(--text-muted)' : 'var(--text-primary)',
-                          fontWeight: 500,
-                          textDecoration: c.estado === 'pagada' ? 'line-through' : 'none',
-                        }}>
-                          {c.cliente_nombre}
-                        </span>
-                        <span
-                          className={`badge ${c.estado === 'vencida' ? 'badge-danger' : c.estado === 'pagada' ? '' : 'badge-success'}`}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {cuotas.map(c => (
+                        <div
+                          key={c.cuota_id}
+                          onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
                           style={{
-                            fontSize: '0.7rem',
-                            ...(c.estado === 'pagada' ? { background: 'var(--bg-secondary)', color: 'var(--text-muted)' } : {}),
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            cursor: 'pointer',
+                            padding: '2px 0',
                           }}
                         >
-                          #{c.numero_cuota}
-                        </span>
-                      </div>
-                    ))}
+                          <span style={{
+                            fontSize: '0.85rem',
+                            color: c.estado === 'pagada' ? 'var(--text-muted)' : 'var(--text-primary)',
+                            fontWeight: 500,
+                            textDecoration: c.estado === 'pagada' ? 'line-through' : 'none',
+                          }}>
+                            {c.cliente_nombre}
+                          </span>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            {c.estado !== 'pagada' && c.monto > 0 && (
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                {formatMoney(c.monto)}
+                              </span>
+                            )}
+                            <span
+                              className={`badge ${c.estado === 'vencida' ? 'badge-danger' : c.estado === 'pagada' ? '' : 'badge-success'}`}
+                              style={{
+                                fontSize: '0.7rem',
+                                ...(c.estado === 'pagada' ? { background: 'var(--bg-secondary)', color: 'var(--text-muted)' } : {}),
+                              }}
+                            >
+                              #{c.numero_cuota}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      {montoTotal > 0 && (
+                        <div style={{
+                          borderTop: '1px solid var(--border)',
+                          paddingTop: 4,
+                          marginTop: 2,
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          color: 'var(--accent)',
+                        }}>
+                          Total: {formatMoney(montoTotal)}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
           </div>
         </div>
       )}
 
-      {!loading && totalCuotasMes === 0 && vencidasAnt.length === 0 && (
+      {!loading && totalCuotasMes === 0 && vencidasAnt.length === 0 && Object.keys(diasFiltrados).length === 0 && (
         <div className="empty-state" style={{ marginTop: 32 }}>
           <CalendarDays size={40} />
           <h3>Sin pagos este mes</h3>

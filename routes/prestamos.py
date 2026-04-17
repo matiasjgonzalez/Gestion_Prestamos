@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func as sqlfunc, cast, extract, Date as SADate
+from sqlalchemy import func as sqlfunc, cast, extract, Date as SADate, case, or_, String
 from database import get_db
 from schemas.prestamo import PrestamoCreate, PrestamoRead
 from schemas.cuota import CuotaRead, CuotaUpdate, CuotaInput
@@ -465,15 +465,31 @@ def listar_prestamos(
         q = q.filter(Prestamo.tipo_prestamo == tipo_prestamo)
     if search:
         term = f"%{search}%"
-        from sqlalchemy import or_, cast as sa_cast, String
         q = q.filter(
             or_(
                 (Cliente.nombre + " " + Cliente.apellido).ilike(term),
                 Cliente.dni.ilike(term),
-                sa_cast(Prestamo.id, String).ilike(term),
+                cast(Prestamo.id, String).ilike(term),
             )
         )
     items = q.order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
+
+    # Batch-fetch cuota counts to avoid N+1
+    cuotas_stats: dict = {}
+    if items:
+        prestamo_ids = [p.id for p in items]
+        rows = (
+            db.query(
+                Cuota.prestamo_id,
+                sqlfunc.count(Cuota.id).label("total"),
+                sqlfunc.sum(case((Cuota.estado == "pagada", 1), else_=0)).label("pagadas"),
+            )
+            .filter(Cuota.prestamo_id.in_(prestamo_ids))
+            .group_by(Cuota.prestamo_id)
+            .all()
+        )
+        cuotas_stats = {r.prestamo_id: {"total": r.total, "pagadas": int(r.pagadas or 0)} for r in rows}
+
     return [
         {
             "id": p.id,
@@ -483,6 +499,8 @@ def listar_prestamos(
             "monto": float(p.monto),
             "interes_total": p.interes_total,
             "cuotas": p.cuotas,
+            "cuotas_pagadas": cuotas_stats.get(p.id, {}).get("pagadas", 0),
+            "cuotas_total": cuotas_stats.get(p.id, {}).get("total", p.cuotas),
             "monto_cuota": float(p.monto_cuota) if p.monto_cuota else None,
             "fecha_inicio": p.fecha_inicio.isoformat() if p.fecha_inicio else None,
             "estado": p.estado,
