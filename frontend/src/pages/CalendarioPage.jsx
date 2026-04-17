@@ -228,7 +228,7 @@ export default function CalendarioPage() {
 
       {/* Grilla */}
       <div style={{ overflowX: 'auto' }}>
-        <div style={{
+        <div className="calendario-grid" style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(7, 1fr)',
           gap: 3,
@@ -257,7 +257,7 @@ export default function CalendarioPage() {
             const montoDelDia = cuotas.filter(c => c.estado !== 'pagada').reduce((s, c) => s + (c.monto || 0), 0);
 
             return (
-              <div key={idx} style={{
+              <div key={idx} className={valido ? 'cal-day-cell' : ''} style={{
                 background: !valido
                   ? 'transparent'
                   : esHoy(dia)
@@ -287,42 +287,46 @@ export default function CalendarioPage() {
                       {dia}
                     </div>
 
-                    {/* Badges de clientes */}
-                    {cuotas.slice(0, 3).map((c) => (
-                      <div
-                        key={c.cuota_id}
-                        onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
-                        title={`${c.cliente_nombre} — Cuota #${c.numero_cuota} (${c.estado})`}
-                        style={{
-                          ...badgeStyle(c.estado),
-                          borderRadius: 3,
-                          fontSize: '0.65rem',
-                          padding: '1px 4px',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {c.cliente_nombre.split(' ').slice(0, 2).join(' ')}
-                      </div>
-                    ))}
+                    {/* Badges de clientes — texto en desktop, puntos en mobile */}
+                    <div className="cal-badges-row">
+                      {cuotas.slice(0, 4).map((c) => (
+                        <div
+                          key={c.cuota_id}
+                          className="cal-day-badge"
+                          data-estado={c.estado}
+                          onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
+                          title={`${c.cliente_nombre} — Cuota #${c.numero_cuota} (${c.estado})`}
+                          style={{
+                            ...badgeStyle(c.estado),
+                            borderRadius: 3,
+                            fontSize: '0.65rem',
+                            padding: '1px 4px',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {c.cliente_nombre.split(' ').slice(0, 2).join(' ')}
+                        </div>
+                      ))}
 
-                    {/* +N si hay más */}
-                    {cuotas.length > 3 && (
-                      <div style={{
-                        fontSize: '0.62rem',
-                        color: 'var(--text-muted)',
-                        paddingLeft: 2,
-                      }}>
-                        +{cuotas.length - 3} más
-                      </div>
-                    )}
+                      {/* +N si hay más */}
+                      {cuotas.length > 4 && (
+                        <div className="cal-more" style={{
+                          fontSize: '0.62rem',
+                          color: 'var(--text-muted)',
+                          paddingLeft: 2,
+                        }}>
+                          +{cuotas.length - 4}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Monto total pendiente del día */}
                     {montoDelDia > 0 && (
-                      <div style={{
+                      <div className="cal-day-monto" style={{
                         fontSize: '0.62rem',
                         color: 'var(--accent)',
                         fontWeight: 600,

@@ -1221,10 +1221,45 @@ select.form-control { cursor: pointer; }
   }
   .gsearch-input-row { position: relative; padding-top: 20px; }
 
-  /* ── Calendario ── */
-  .calendario-grid div { min-height: 52px !important; padding: 3px !important; }
-  .calendario-grid div > div:first-child { font-size: 0.68rem !important; }
-  .calendario-grid div > div[style*="0.65rem"] { font-size: 0.58rem !important; padding: 1px 3px !important; }
+  /* ── Calendario mobile: puntos de color en lugar de nombres ── */
+  .calendario-grid .cal-day-cell {
+    min-height: 48px !important;
+    padding: 3px 3px !important;
+  }
+  .cal-badges-row {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 3px !important;
+    margin-top: 2px;
+  }
+  .cal-day-badge {
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    min-width: 8px !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    text-indent: -999px !important;
+  }
+  .cal-more {
+    font-size: 0.6rem !important;
+    line-height: 8px;
+    color: var(--text-muted);
+    padding-left: 1px !important;
+  }
+  .cal-day-monto {
+    font-size: 0.6rem !important;
+    margin-top: 2px !important;
+  }
+}
+
+/* ─── Calendario ─── */
+.cal-badges-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 /* ─── Global Search ─── */
