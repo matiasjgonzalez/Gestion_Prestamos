@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCalendario, invalidateCache } from '../services/api';
 import toast from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, EyeOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, EyeOff, X } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -15,15 +15,15 @@ function getDiasDelMes(anio, mes) {
   return new Date(anio, mes, 0).getDate();
 }
 
-// 0=Dom,1=Lun...6=Sáb -> convertir a Lun=0..Dom=6
 function primerDiaSemana(anio, mes) {
   const d = new Date(anio, mes - 1, 1).getDay();
   return d === 0 ? 6 : d - 1;
 }
 
+// Estilo del badge de texto (desktop)
 function badgeStyle(estado) {
   if (estado === 'vencida') return {
-    background: 'var(--danger-muted)',
+    background: 'rgba(225,29,72,0.18)',
     color: 'var(--danger)',
     border: '1px solid var(--danger)',
   };
@@ -32,12 +32,17 @@ function badgeStyle(estado) {
     color: 'var(--text-muted)',
     border: '1px solid var(--border)',
   };
-  // pendiente
   return {
-    background: 'var(--success-muted)',
+    background: 'rgba(22,163,74,0.18)',
     color: 'var(--success)',
     border: '1px solid var(--success)',
   };
+}
+
+function estadoBadge(estado) {
+  if (estado === 'vencida') return <span className="badge badge-danger" style={{ fontSize: '0.72rem' }}>Vencida</span>;
+  if (estado === 'pagada') return <span className="badge" style={{ fontSize: '0.72rem', background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>Pagada</span>;
+  return <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>Pendiente</span>;
 }
 
 export default function CalendarioPage() {
@@ -49,11 +54,21 @@ export default function CalendarioPage() {
   const [loading, setLoading] = useState(true);
   const [showVencidas, setShowVencidas] = useState(false);
   const [ocultarPagadas, setOcultarPagadas] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const panelRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
+    setSelectedDay(null);
     loadCalendario();
   }, [mes, anio]);
+
+  // Scroll al panel cuando se selecciona un día
+  useEffect(() => {
+    if (selectedDay && panelRef.current) {
+      setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    }
+  }, [selectedDay]);
 
   const loadCalendario = async () => {
     setLoading(true);
@@ -62,7 +77,7 @@ export default function CalendarioPage() {
       const res = await getCalendario(mes, anio);
       setDiasData(res.data.dias || {});
       setVencidasAnt(res.data.vencidas_anteriores || []);
-    } catch (err) {
+    } catch {
       toast.error('Error al cargar el calendario');
     } finally {
       setLoading(false);
@@ -79,31 +94,33 @@ export default function CalendarioPage() {
     else setMes(m => m + 1);
   };
 
+  const irHoy = () => {
+    setMes(hoy.getMonth() + 1);
+    setAnio(hoy.getFullYear());
+  };
+
+  const esHoyActual = mes === hoy.getMonth() + 1 && anio === hoy.getFullYear();
+
   const totalDias = getDiasDelMes(anio, mes);
   const offset = primerDiaSemana(anio, mes);
-  const celdas = offset + totalDias;
-  const filas = Math.ceil(celdas / 7);
+  const filas = Math.ceil((offset + totalDias) / 7);
 
   const hoyDia = hoy.getDate();
-  const hoyMes = hoy.getMonth() + 1;
-  const hoyAnio = hoy.getFullYear();
-  const esHoy = (dia) => dia === hoyDia && mes === hoyMes && anio === hoyAnio;
+  const esHoy = (dia) => dia === hoyDia && esHoyActual;
 
   const totalCuotasMes = Object.values(diasData).reduce((s, arr) => s + arr.length, 0);
 
-  // Stats del mes: cuotas pendientes/vencidas y su monto total
-  const cuotasPendientesMes = Object.values(diasData)
-    .flat()
-    .filter(c => c.estado !== 'pagada');
+  const cuotasPendientesMes = Object.values(diasData).flat().filter(c => c.estado !== 'pagada');
   const montoPendienteMes = cuotasPendientesMes.reduce((s, c) => s + (c.monto || 0), 0);
 
-  // Días filtrados según toggle "ocultar pagadas"
   const diasFiltrados = Object.fromEntries(
-    Object.entries(diasData).map(([dia, cuotas]) => [
-      dia,
-      ocultarPagadas ? cuotas.filter(c => c.estado !== 'pagada') : cuotas,
-    ]).filter(([, cuotas]) => cuotas.length > 0)
+    Object.entries(diasData)
+      .map(([dia, cuotas]) => [dia, ocultarPagadas ? cuotas.filter(c => c.estado !== 'pagada') : cuotas])
+      .filter(([, cuotas]) => cuotas.length > 0)
   );
+
+  // Cuotas del día seleccionado (sin filtro de pagadas para mostrar todo)
+  const cuotasDiaSeleccionado = selectedDay ? (diasData[selectedDay] || []) : [];
 
   return (
     <div>
@@ -113,7 +130,7 @@ export default function CalendarioPage() {
           <CalendarDays size={20} style={{ marginRight: 8, verticalAlign: -2 }} />
           Calendario de Pagos
         </h2>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {!loading && vencidasAnt.length > 0 && (
             <span style={{ color: 'var(--danger)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 4 }}>
               <AlertTriangle size={14} />
@@ -129,54 +146,32 @@ export default function CalendarioPage() {
             <button
               className={`btn btn-sm ${ocultarPagadas ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setOcultarPagadas(v => !v)}
-              title={ocultarPagadas ? 'Mostrar pagadas' : 'Ocultar pagadas'}
             >
               <EyeOff size={13} />
-              {ocultarPagadas ? 'Mostrando solo pendientes' : 'Ocultar pagadas'}
+              {ocultarPagadas ? 'Solo pendientes' : 'Ocultar pagadas'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Vencidas de meses anteriores — acordeón */}
+      {/* Vencidas anteriores — acordeón */}
       {!loading && vencidasAnt.length > 0 && (
-        <div style={{
-          border: '1px solid var(--danger)',
-          borderRadius: 8,
-          marginBottom: 16,
-          overflow: 'hidden',
-        }}>
-          {/* Cabecera — siempre visible */}
+        <div style={{ border: '1px solid var(--danger)', borderRadius: 8, marginBottom: 16, overflow: 'hidden' }}>
           <button
             onClick={() => setShowVencidas(v => !v)}
             style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 14px',
-              background: 'var(--danger-muted)',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-body)',
+              width: '100%', display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', padding: '10px 14px',
+              background: 'var(--danger-muted)', border: 'none',
+              cursor: 'pointer', fontFamily: 'var(--font-body)',
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 600, fontSize: '0.85rem', color: 'var(--danger)' }}>
               <AlertTriangle size={14} />
               {vencidasAnt.length} cuota{vencidasAnt.length !== 1 ? 's' : ''} vencida{vencidasAnt.length !== 1 ? 's' : ''} de meses anteriores
             </span>
-            <ChevronDown
-              size={16}
-              style={{
-                color: 'var(--danger)',
-                transform: showVencidas ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: '180ms ease',
-                flexShrink: 0,
-              }}
-            />
+            <ChevronDown size={16} style={{ color: 'var(--danger)', transform: showVencidas ? 'rotate(180deg)' : 'none', transition: '180ms ease', flexShrink: 0 }} />
           </button>
-
-          {/* Lista — solo visible si expandido */}
           {showVencidas && (
             <div style={{ background: 'var(--bg-card)', padding: '8px 14px' }}>
               {vencidasAnt.map((c, i) => (
@@ -184,11 +179,8 @@ export default function CalendarioPage() {
                   key={c.cuota_id}
                   onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
                   style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    padding: '7px 0',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    cursor: 'pointer', padding: '7px 0',
                     borderBottom: i < vencidasAnt.length - 1 ? '1px solid var(--border)' : 'none',
                   }}
                 >
@@ -199,9 +191,8 @@ export default function CalendarioPage() {
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       {new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
                     </span>
-                    <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>
-                      #{c.numero_cuota}
-                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatMoney(c.monto)}</span>
+                    <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>#{c.numero_cuota}</span>
                   </div>
                 </div>
               ))}
@@ -211,39 +202,33 @@ export default function CalendarioPage() {
       )}
 
       {/* Navegación de mes */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: 16, marginBottom: 16,
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 14 }}>
         <button className="btn btn-secondary btn-sm" onClick={irMesAnterior}>
           <ChevronLeft size={16} />
         </button>
-        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, minWidth: 180, textAlign: 'center' }}>
+        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, minWidth: 170, textAlign: 'center' }}>
           {MESES[mes - 1]} {anio}
         </h3>
         <button className="btn btn-secondary btn-sm" onClick={irMesSiguiente}>
           <ChevronRight size={16} />
         </button>
+        {!esHoyActual && (
+          <button className="btn btn-secondary btn-sm" onClick={irHoy} style={{ marginLeft: 4 }}>
+            Hoy
+          </button>
+        )}
       </div>
 
       {/* Grilla */}
       <div style={{ overflowX: 'auto' }}>
-        <div className="calendario-grid" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          gap: 3,
-          minWidth: 300,
-        }}>
+        <div className="calendario-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, minWidth: 300 }}>
+
           {/* Cabecera días semana */}
           {DIAS_SEMANA.map(d => (
             <div key={d} style={{
-              textAlign: 'center',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              color: 'var(--text-muted)',
-              padding: '4px 0',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
+              textAlign: 'center', fontSize: '0.72rem', fontWeight: 600,
+              color: 'var(--text-muted)', padding: '4px 0',
+              textTransform: 'uppercase', letterSpacing: '0.05em',
             }}>
               {d}
             </div>
@@ -254,54 +239,60 @@ export default function CalendarioPage() {
             const dia = idx - offset + 1;
             const valido = dia >= 1 && dia <= totalDias;
             const cuotas = valido ? (diasFiltrados[dia] || []) : [];
+            const allCuotas = valido ? (diasData[dia] || []) : [];
             const montoDelDia = cuotas.filter(c => c.estado !== 'pagada').reduce((s, c) => s + (c.monto || 0), 0);
+            const isSelected = selectedDay === dia;
+            const tieneCuotas = allCuotas.length > 0;
 
             return (
-              <div key={idx} className={valido ? 'cal-day-cell' : ''} style={{
-                background: !valido
-                  ? 'transparent'
-                  : esHoy(dia)
-                    ? 'var(--accent-muted)'
+              <div
+                key={idx}
+                className={valido ? 'cal-day-cell' : ''}
+                onClick={valido ? () => setSelectedDay(isSelected ? null : dia) : undefined}
+                style={{
+                  background: !valido ? 'transparent'
+                    : isSelected ? 'var(--accent-muted)'
+                    : esHoy(dia) ? 'rgba(2,132,199,0.06)'
                     : 'var(--bg-card)',
-                border: !valido
-                  ? 'none'
-                  : esHoy(dia)
-                    ? '1px solid var(--accent)'
+                  border: !valido ? 'none'
+                    : isSelected ? '2px solid var(--accent)'
+                    : esHoy(dia) ? '1px solid var(--accent)'
                     : '1px solid var(--border)',
-                borderRadius: 6,
-                minHeight: 70,
-                padding: '4px 5px',
-                display: valido ? 'flex' : 'block',
-                flexDirection: 'column',
-                gap: 2,
-              }}>
+                  borderRadius: 6,
+                  minHeight: 70,
+                  padding: '4px 5px',
+                  display: valido ? 'flex' : 'block',
+                  flexDirection: 'column',
+                  gap: 2,
+                  cursor: valido ? 'pointer' : 'default',
+                  transition: 'border-color 120ms, background 120ms',
+                }}
+              >
                 {valido && (
                   <>
                     {/* Número del día */}
                     <div style={{
                       fontSize: '0.75rem',
-                      fontWeight: esHoy(dia) ? 700 : 500,
-                      color: esHoy(dia) ? 'var(--accent)' : 'var(--text-secondary)',
-                      marginBottom: 2,
+                      fontWeight: esHoy(dia) || isSelected ? 700 : 500,
+                      color: isSelected ? 'var(--accent)' : esHoy(dia) ? 'var(--accent)' : 'var(--text-secondary)',
+                      marginBottom: 1,
                     }}>
                       {dia}
                     </div>
 
-                    {/* Badges de clientes — texto en desktop, puntos en mobile */}
+                    {/* Badges — texto en desktop, puntos en mobile */}
                     <div className="cal-badges-row">
                       {cuotas.slice(0, 4).map((c) => (
                         <div
                           key={c.cuota_id}
                           className="cal-day-badge"
                           data-estado={c.estado}
-                          onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
                           title={`${c.cliente_nombre} — Cuota #${c.numero_cuota} (${c.estado})`}
                           style={{
                             ...badgeStyle(c.estado),
                             borderRadius: 3,
                             fontSize: '0.65rem',
                             padding: '1px 4px',
-                            cursor: 'pointer',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -311,27 +302,16 @@ export default function CalendarioPage() {
                           {c.cliente_nombre.split(' ').slice(0, 2).join(' ')}
                         </div>
                       ))}
-
-                      {/* +N si hay más */}
                       {cuotas.length > 4 && (
-                        <div className="cal-more" style={{
-                          fontSize: '0.62rem',
-                          color: 'var(--text-muted)',
-                          paddingLeft: 2,
-                        }}>
-                          +{cuotas.length - 4}
-                        </div>
+                        <div className="cal-more">+{cuotas.length - 4}</div>
                       )}
                     </div>
 
-                    {/* Monto total pendiente del día */}
+                    {/* Monto del día (solo si hay pendientes) */}
                     {montoDelDia > 0 && (
                       <div className="cal-day-monto" style={{
-                        fontSize: '0.62rem',
-                        color: 'var(--accent)',
-                        fontWeight: 600,
-                        paddingLeft: 2,
-                        marginTop: 'auto',
+                        fontSize: '0.6rem', color: 'var(--accent)',
+                        fontWeight: 600, marginTop: 'auto',
                       }}>
                         {formatMoney(montoDelDia)}
                       </div>
@@ -344,24 +324,108 @@ export default function CalendarioPage() {
         </div>
       </div>
 
+      {/* Panel de día seleccionado */}
+      {selectedDay && (
+        <div
+          ref={panelRef}
+          style={{
+            marginTop: 12,
+            border: '2px solid var(--accent)',
+            borderRadius: 10,
+            background: 'var(--bg-card)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Encabezado del panel */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '10px 14px',
+            background: 'var(--accent-muted)',
+            borderBottom: cuotasDiaSeleccionado.length > 0 ? '1px solid var(--border)' : 'none',
+          }}>
+            <strong style={{ fontSize: '0.95rem', color: 'var(--accent)' }}>
+              {selectedDay} de {MESES[mes - 1]} {anio}
+              {cuotasDiaSeleccionado.length > 0 && (
+                <span style={{ fontWeight: 400, fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 8 }}>
+                  {cuotasDiaSeleccionado.length} cuota{cuotasDiaSeleccionado.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </strong>
+            <button className="btn-icon" onClick={() => setSelectedDay(null)}>
+              <X size={15} />
+            </button>
+          </div>
+
+          {/* Contenido */}
+          {cuotasDiaSeleccionado.length === 0 ? (
+            <div style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              Sin cuotas para este día
+            </div>
+          ) : (
+            <div style={{ padding: '6px 14px 10px' }}>
+              {cuotasDiaSeleccionado.map((c, i) => (
+                <div
+                  key={c.cuota_id}
+                  onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    cursor: 'pointer', padding: '9px 0',
+                    borderBottom: i < cuotasDiaSeleccionado.length - 1 ? '1px solid var(--border)' : 'none',
+                    gap: 10,
+                  }}
+                >
+                  <span style={{
+                    fontSize: '0.88rem', fontWeight: 500,
+                    color: c.estado === 'pagada' ? 'var(--text-muted)' : 'var(--text-primary)',
+                    textDecoration: c.estado === 'pagada' ? 'line-through' : 'none',
+                    flex: 1, minWidth: 0,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {c.cliente_nombre}
+                  </span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                    {c.estado !== 'pagada' && (
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {formatMoney(c.monto)}
+                      </span>
+                    )}
+                    {estadoBadge(c.estado)}
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>#{c.numero_cuota}</span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Total del día */}
+              {cuotasDiaSeleccionado.filter(c => c.estado !== 'pagada').length > 0 && (
+                <div style={{
+                  display: 'flex', justifyContent: 'flex-end',
+                  paddingTop: 8, marginTop: 2,
+                  borderTop: '1px solid var(--border)',
+                  fontSize: '0.88rem', fontWeight: 700, color: 'var(--accent)',
+                }}>
+                  Total a cobrar: {formatMoney(cuotasDiaSeleccionado.filter(c => c.estado !== 'pagada').reduce((s, c) => s + c.monto, 0))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Leyenda */}
-      <div style={{ display: 'flex', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          <span style={{ width: 12, height: 12, borderRadius: 2, background: 'var(--success-muted)', border: '1px solid var(--success)', display: 'inline-block' }} />
-          Pendiente
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          <span style={{ width: 12, height: 12, borderRadius: 2, background: 'var(--danger-muted)', border: '1px solid var(--danger)', display: 'inline-block' }} />
-          Vencida
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          <span style={{ width: 12, height: 12, borderRadius: 2, background: 'var(--bg-secondary)', border: '1px solid var(--border)', display: 'inline-block' }} />
-          Pagada
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          <span style={{ width: 12, height: 12, borderRadius: 2, background: 'var(--accent-muted)', border: '1px solid var(--accent)', display: 'inline-block' }} />
-          Hoy
-        </div>
+      <div style={{ display: 'flex', gap: 14, marginTop: 14, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Pendiente', bg: 'rgba(22,163,74,0.18)', border: 'var(--success)', dot: 'var(--success)' },
+          { label: 'Vencida',   bg: 'rgba(225,29,72,0.18)', border: 'var(--danger)',  dot: 'var(--danger)' },
+          { label: 'Pagada',    bg: 'var(--bg-secondary)',  border: 'var(--border)',  dot: 'var(--text-muted)' },
+          { label: 'Hoy',       bg: 'rgba(2,132,199,0.06)', border: 'var(--accent)',  dot: 'var(--accent)' },
+        ].map(({ label, bg, border, dot }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            {/* Desktop: muestra el badge; Mobile: muestra el dot */}
+            <span className="legend-badge-desktop" style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: bg, border: `1px solid ${border}`, fontSize: '0.72rem', color: border }} />
+            <span className="legend-dot-mobile" style={{ display: 'none', width: 10, height: 10, borderRadius: '50%', background: dot, flexShrink: 0 }} />
+            {label}
+          </div>
+        ))}
       </div>
 
       {/* Detalle del mes */}
@@ -375,24 +439,26 @@ export default function CalendarioPage() {
               .sort(([a], [b]) => parseInt(a) - parseInt(b))
               .map(([dia, cuotas]) => {
                 const montoTotal = cuotas.filter(c => c.estado !== 'pagada').reduce((s, c) => s + (c.monto || 0), 0);
+                const isSelected = selectedDay === parseInt(dia);
                 return (
-                  <div key={dia} style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 12,
-                  }}>
+                  <div
+                    key={dia}
+                    style={{
+                      background: 'var(--bg-card)',
+                      border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 12,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setSelectedDay(isSelected ? null : parseInt(dia))}
+                  >
                     <div style={{
-                      minWidth: 36,
-                      textAlign: 'center',
-                      fontSize: '1.2rem',
-                      fontWeight: 700,
-                      color: 'var(--accent)',
-                      lineHeight: 1,
-                      paddingTop: 2,
+                      minWidth: 36, textAlign: 'center', fontSize: '1.2rem',
+                      fontWeight: 700, color: isSelected ? 'var(--accent)' : 'var(--accent)',
+                      lineHeight: 1, paddingTop: 2,
                     }}>
                       {dia}
                       <div style={{ fontSize: '0.62rem', fontWeight: 400, color: 'var(--text-muted)' }}>
@@ -403,13 +469,10 @@ export default function CalendarioPage() {
                       {cuotas.map(c => (
                         <div
                           key={c.cuota_id}
-                          onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/prestamos/${c.prestamo_id}`); }}
                           style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            cursor: 'pointer',
-                            padding: '2px 0',
+                            display: 'flex', justifyContent: 'space-between',
+                            alignItems: 'center', cursor: 'pointer', padding: '2px 0',
                           }}
                         >
                           <span style={{
@@ -428,10 +491,7 @@ export default function CalendarioPage() {
                             )}
                             <span
                               className={`badge ${c.estado === 'vencida' ? 'badge-danger' : c.estado === 'pagada' ? '' : 'badge-success'}`}
-                              style={{
-                                fontSize: '0.7rem',
-                                ...(c.estado === 'pagada' ? { background: 'var(--bg-secondary)', color: 'var(--text-muted)' } : {}),
-                              }}
+                              style={{ fontSize: '0.7rem', ...(c.estado === 'pagada' ? { background: 'var(--bg-secondary)', color: 'var(--text-muted)' } : {}) }}
                             >
                               #{c.numero_cuota}
                             </span>
@@ -440,14 +500,9 @@ export default function CalendarioPage() {
                       ))}
                       {montoTotal > 0 && (
                         <div style={{
-                          borderTop: '1px solid var(--border)',
-                          paddingTop: 4,
-                          marginTop: 2,
-                          display: 'flex',
-                          justifyContent: 'flex-end',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          color: 'var(--accent)',
+                          borderTop: '1px solid var(--border)', paddingTop: 4, marginTop: 2,
+                          display: 'flex', justifyContent: 'flex-end',
+                          fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent)',
                         }}>
                           Total: {formatMoney(montoTotal)}
                         </div>
@@ -460,7 +515,7 @@ export default function CalendarioPage() {
         </div>
       )}
 
-      {!loading && totalCuotasMes === 0 && vencidasAnt.length === 0 && Object.keys(diasFiltrados).length === 0 && (
+      {!loading && totalCuotasMes === 0 && vencidasAnt.length === 0 && (
         <div className="empty-state" style={{ marginTop: 32 }}>
           <CalendarDays size={40} />
           <h3>Sin pagos este mes</h3>

@@ -1221,38 +1221,40 @@ select.form-control { cursor: pointer; }
   }
   .gsearch-input-row { position: relative; padding-top: 20px; }
 
-  /* ── Calendario mobile: puntos de color en lugar de nombres ── */
-  .calendario-grid .cal-day-cell {
-    min-height: 48px !important;
-    padding: 3px 3px !important;
-  }
+  /* ── Calendario mobile: puntos de color sólido ── */
+  .cal-day-cell { min-height: 50px !important; padding: 3px !important; }
   .cal-badges-row {
     flex-direction: row !important;
     flex-wrap: wrap !important;
     gap: 3px !important;
-    margin-top: 2px;
+    margin-top: 3px !important;
   }
+  /* Puntos sólidos — colores por estado */
   .cal-day-badge {
-    width: 8px !important;
-    height: 8px !important;
+    width: 9px !important;
+    height: 9px !important;
     border-radius: 50% !important;
     padding: 0 !important;
     font-size: 0 !important;
-    min-width: 8px !important;
+    min-width: 9px !important;
     flex-shrink: 0 !important;
     overflow: hidden !important;
     text-indent: -999px !important;
+    border: none !important;
   }
+  .cal-day-badge[data-estado="pendiente"] { background: var(--success) !important; }
+  .cal-day-badge[data-estado="vencida"]   { background: var(--danger)  !important; }
+  .cal-day-badge[data-estado="pagada"]    { background: var(--text-muted) !important; opacity: 0.5; }
   .cal-more {
-    font-size: 0.6rem !important;
-    line-height: 8px;
+    font-size: 0.58rem !important;
+    line-height: 9px;
     color: var(--text-muted);
     padding-left: 1px !important;
   }
-  .cal-day-monto {
-    font-size: 0.6rem !important;
-    margin-top: 2px !important;
-  }
+  .cal-day-monto { font-size: 0.58rem !important; margin-top: 2px !important; }
+  /* Leyenda: mostrar dot, ocultar badge de texto */
+  .legend-badge-desktop { display: none !important; }
+  .legend-dot-mobile    { display: inline-block !important; }
 }
 
 /* ─── Calendario ─── */
