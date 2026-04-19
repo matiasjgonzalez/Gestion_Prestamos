@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getUsuarios, createUsuario, resetPasswordUsuario, toggleActiveUsuario } from '../services/api';
+import { getUsuarios, createUsuario, resetPasswordUsuario, toggleActiveUsuario, toggleRoleUsuario } from '../services/api';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
-import { UserPlus, RefreshCw, UserCheck, UserX, ShieldCheck } from 'lucide-react';
+import { UserPlus, RefreshCw, UserCheck, UserX, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function UsuariosPage() {
@@ -82,6 +82,18 @@ export default function UsuariosPage() {
     }
   };
 
+  const handleToggleRole = async (u) => {
+    const nuevoRol = u.is_admin ? 'usuario' : 'admin';
+    if (!window.confirm(`¿Cambiar el rol de "${u.username}" a ${nuevoRol}?`)) return;
+    try {
+      await toggleRoleUsuario(u.id);
+      toast.success(`Rol de "${u.username}" cambiado a ${nuevoRol}`);
+      loadUsuarios();
+    } catch (err) {
+      toast.error(err.userMessage || 'Error');
+    }
+  };
+
   if (loading) return <div style={{ padding: 32, color: 'var(--text-muted)' }}>Cargando...</div>;
 
   return (
@@ -127,12 +139,20 @@ export default function UsuariosPage() {
                     : <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>}
                 </td>
                 <td>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => { setResetModal({ id: u.id, username: u.username }); setTempPassword(''); }}
                     >
                       <RefreshCw size={13} />Resetear pass
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      title={u.is_admin ? 'Quitar admin' : 'Hacer admin'}
+                      onClick={() => handleToggleRole(u)}
+                    >
+                      {u.is_admin ? <ShieldOff size={13} /> : <ShieldCheck size={13} />}
+                      {u.is_admin ? 'Quitar admin' : 'Hacer admin'}
                     </button>
                     <button
                       className="btn btn-secondary btn-sm"

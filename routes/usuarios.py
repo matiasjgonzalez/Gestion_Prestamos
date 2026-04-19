@@ -53,6 +53,23 @@ def reset_password(
     return {"ok": True, "message": f"Contraseña de '{user.username}' reseteada"}
 
 
+@router.put("/{user_id}/toggle-role")
+def toggle_role(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(get_admin_user),
+):
+    user = db.query(Usuario).filter(Usuario.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="No podés cambiar tu propio rol")
+    user.is_admin = not user.is_admin
+    db.add(user)
+    db.commit()
+    return {"ok": True, "is_admin": user.is_admin}
+
+
 @router.put("/{user_id}/toggle-active")
 def toggle_active(
     user_id: int,

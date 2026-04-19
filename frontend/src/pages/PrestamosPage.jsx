@@ -5,7 +5,7 @@ import { useDebounce } from '../utils/helpers';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Eye, Banknote, Calendar, Search, X, Download } from 'lucide-react';
+import { Plus, Trash2, Eye, Banknote, Calendar, Search, X, Download, ArrowUpAZ, ArrowDownAZ, ArrowUp01, ArrowDown01 } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
 
@@ -37,6 +37,8 @@ export default function PrestamosPage() {
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroCliente, setFiltroCliente] = useState('');
   const debouncedFiltroCliente = useDebounce(filtroCliente, 300);
+  const [sortBy, setSortBy] = useState('id');
+  const [sortDesc, setSortDesc] = useState(true);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -53,8 +55,8 @@ export default function PrestamosPage() {
   const clienteRef = useRef(null);
   const fechaRef = useRef(null);
 
-  useEffect(() => { setPage(0); }, [filtroEstado, filtroTipo, debouncedFiltroCliente]);
-  useEffect(() => { loadData(); }, [page, filtroEstado, filtroTipo, debouncedFiltroCliente]);
+  useEffect(() => { setPage(0); }, [filtroEstado, filtroTipo, debouncedFiltroCliente, sortBy, sortDesc]);
+  useEffect(() => { loadData(); }, [page, filtroEstado, filtroTipo, debouncedFiltroCliente, sortBy, sortDesc]);
 
   // Búsqueda lazy de clientes al tipear en el autocomplete
   useEffect(() => {
@@ -96,7 +98,7 @@ export default function PrestamosPage() {
   const loadData = async (p = page) => {
     try {
       setLoading(true);
-      const params = { limit: pageSize, offset: p * pageSize };
+      const params = { limit: pageSize, offset: p * pageSize, sort_by: sortBy, sort_desc: sortDesc };
       if (filtroEstado) params.estado = filtroEstado;
       if (filtroTipo) params.tipo_prestamo = filtroTipo;
       if (debouncedFiltroCliente) params.search = debouncedFiltroCliente;
@@ -248,7 +250,18 @@ export default function PrestamosPage() {
         <>
           <div className="table-wrapper">
             <table>
-              <thead><tr><th>ID</th><th>Cliente</th><th>Monto</th><th>Interés</th><th>Cuotas</th><th>Fecha Inicio</th><th>Estado</th><th style={{ width: 100 }}>Acciones</th></tr></thead>
+              <thead><tr>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { setSortBy('id'); setSortDesc(s => sortBy === 'id' ? !s : true); }}>
+                  ID {sortBy === 'id' && (sortDesc ? <ArrowDown01 size={12} style={{ verticalAlign: -1 }} /> : <ArrowUp01 size={12} style={{ verticalAlign: -1 }} />)}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { setSortBy('cliente'); setSortDesc(s => sortBy === 'cliente' ? !s : false); }}>
+                  Cliente {sortBy === 'cliente' && (sortDesc ? <ArrowDownAZ size={12} style={{ verticalAlign: -1 }} /> : <ArrowUpAZ size={12} style={{ verticalAlign: -1 }} />)}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { setSortBy('monto'); setSortDesc(s => sortBy === 'monto' ? !s : true); }}>
+                  Monto {sortBy === 'monto' && (sortDesc ? <ArrowDown01 size={12} style={{ verticalAlign: -1 }} /> : <ArrowUp01 size={12} style={{ verticalAlign: -1 }} />)}
+                </th>
+                <th>Interés</th><th>Cuotas</th><th>Fecha Inicio</th><th>Estado</th><th style={{ width: 100 }}>Acciones</th>
+              </tr></thead>
               <tbody>
                 {prestamos.map((p) => (
                   <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/prestamos/${p.id}`)}>

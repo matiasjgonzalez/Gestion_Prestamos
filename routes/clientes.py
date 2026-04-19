@@ -125,6 +125,7 @@ def list_clientes(
     offset: int = 0,
     limit: int = 100,
     search: str = Query(None, description="Buscar por nombre, apellido o DNI"),
+    sort_desc: bool = Query(False, description="Orden descendente por apellido"),
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
@@ -137,7 +138,11 @@ def list_clientes(
             | (Cliente.dni.ilike(pattern))
             | (func.concat(Cliente.nombre, ' ', Cliente.apellido).ilike(pattern))
         )
-    clientes = query.order_by(Cliente.apellido, Cliente.nombre).offset(offset).limit(limit).all()
+    if sort_desc:
+        query = query.order_by(Cliente.apellido.desc(), Cliente.nombre.desc())
+    else:
+        query = query.order_by(Cliente.apellido, Cliente.nombre)
+    clientes = query.offset(offset).limit(limit).all()
 
     # IDs de clientes con mora: ya marcadas como "vencida" O pendientes con fecha pasada
     ids_con_mora = set(

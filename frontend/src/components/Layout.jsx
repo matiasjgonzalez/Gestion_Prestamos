@@ -77,12 +77,6 @@ export default function Layout() {
             </NavLink>
           )}
         </nav>
-        <div style={{ padding: '0 12px 4px' }}>
-          <button className="sidebar-link" onClick={() => setShowSearch(true)}>
-            <Search />
-            Buscar
-          </button>
-        </div>
         <div style={{ padding: '0 12px 8px' }}>
           <button className="sidebar-link" onClick={() => setShowCalc(true)}>
             <Calculator />

@@ -10,7 +10,7 @@ import {
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { Plus, Search, Pencil, Trash2, Eye, Users, Download, FileCheck } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, Users, Download, FileCheck, ArrowUpAZ, ArrowDownAZ } from 'lucide-react';
 import { useDebounce } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
 
@@ -29,6 +29,7 @@ export default function ClientesPage() {
   const [pageSize] = useState(10);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
+  const [sortDesc, setSortDesc] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -40,13 +41,13 @@ export default function ClientesPage() {
 
   useEffect(() => {
     loadClientes(debouncedSearch, page);
-  }, [debouncedSearch, page]);
+  }, [debouncedSearch, page, sortDesc]);
 
   const loadClientes = async (q = '', p = page) => {
     try {
       setLoading(true);
       const offset = p * pageSize;
-      const res = await getClientes(q, { limit: pageSize, offset });
+      const res = await getClientes(q, { limit: pageSize, offset, sort_desc: sortDesc });
       setClientes(res.data);
     } catch {
       toast.error('Error al cargar clientes');
@@ -193,7 +194,13 @@ export default function ClientesPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Nombre</th>
+                  <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                      onClick={() => { setSortDesc(d => !d); setPage(0); }}>
+                    Nombre
+                    {sortDesc
+                      ? <ArrowDownAZ size={13} style={{ marginLeft: 4, verticalAlign: -1 }} />
+                      : <ArrowUpAZ size={13} style={{ marginLeft: 4, verticalAlign: -1 }} />}
+                  </th>
                   <th>DNI</th>
                   <th>Teléfono</th>
                   <th>Domicilio</th>

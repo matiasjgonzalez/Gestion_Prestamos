@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from models.archivo import Archivo
-from services.mora_service import verificar_mora, obtener_cuotas_en_mora
+from services.mora_service import verificar_mora, obtener_cuotas_en_mora, obtener_clientes_en_mora
 from services.auth import get_current_user
 
 router = APIRouter()
@@ -38,6 +38,23 @@ def listar_mora(
         "total_en_mora": result["total"],
         "total_monto_mora": result["total_monto"],
         "cuotas": result["cuotas"],
+    }
+
+
+@router.get("/clientes")
+def listar_mora_clientes(
+    search: str = "",
+    limit: int = 10,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Un cliente por fila con resumen de cuotas en mora."""
+    result = obtener_clientes_en_mora(db, search=search, limit=limit, offset=offset)
+    return {
+        "total_clientes": result["total"],
+        "total_monto_mora": result["total_monto"],
+        "clientes": result["clientes"],
     }
 
 

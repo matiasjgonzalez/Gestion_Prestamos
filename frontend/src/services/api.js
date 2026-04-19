@@ -150,6 +150,11 @@ export const toggleActiveUsuario = (id) => {
   return api.put(`/usuarios/${id}/toggle-active`);
 };
 
+export const toggleRoleUsuario = (id) => {
+  invalidateCache('/usuarios');
+  return api.put(`/usuarios/${id}/toggle-role`);
+};
+
 export const changePassword = (new_password) =>
   api.post('/usuarios/change-password', { new_password });
 
@@ -186,6 +191,8 @@ export const verificarMora = () => {
 };
 
 export const getMora = (params = {}) => cachedGet('/mora/', params);
+
+export const getMoraClientes = (params = {}) => cachedGet('/mora/clientes', params);
 
 // ─── Archivos ───
 export const getArchivos = (clienteId) =>

@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { verificarMora, getMora, downloadMoraZip, invalidateCache } from '../services/api';
+import { verificarMora, getMoraClientes, downloadMoraZip, invalidateCache } from '../services/api';
 import toast from 'react-hot-toast';
-import { AlertTriangle, RefreshCw, Download, Search, X } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Download, Search, X, User } from 'lucide-react';
 import { formatMoney, useDebounce } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
 
 const PAGE_SIZE = 10;
 
 export default function MoraPage() {
-  const [cuotas, setCuotas] = useState([]);
-  const [totalMora, setTotalMora] = useState(0);
+  const [clientes, setClientes] = useState([]);
+  const [totalClientes, setTotalClientes] = useState(0);
   const [totalMontoMora, setTotalMontoMora] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -19,24 +19,19 @@ export default function MoraPage() {
   const debouncedSearch = useDebounce(search, 300);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setPage(0);
-  }, [debouncedSearch]);
-
-  useEffect(() => {
-    loadMora();
-  }, [page, debouncedSearch]);
+  useEffect(() => { setPage(0); }, [debouncedSearch]);
+  useEffect(() => { loadMora(); }, [page, debouncedSearch]);
 
   const loadMora = async () => {
     setLoading(true);
     try {
-      const res = await getMora({
+      const res = await getMoraClientes({
         search: debouncedSearch,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
       });
-      setCuotas(res.data.cuotas);
-      setTotalMora(res.data.total_en_mora);
+      setClientes(res.data.clientes);
+      setTotalClientes(res.data.total_clientes);
       setTotalMontoMora(res.data.total_monto_mora ?? 0);
     } catch {
       toast.error('Error al cargar mora');
@@ -64,41 +59,31 @@ export default function MoraPage() {
     }
   };
 
-  const totalPages = Math.ceil(totalMora / PAGE_SIZE);
+  const totalPages = Math.ceil(totalClientes / PAGE_SIZE);
 
   return (
     <div>
       <div className="page-header">
         <h2>
-          <AlertTriangle
-            size={22}
-            style={{ marginRight: 8, verticalAlign: -3, color: 'var(--danger)' }}
-          />
+          <AlertTriangle size={22} style={{ marginRight: 8, verticalAlign: -3, color: 'var(--danger)' }} />
           Mora
         </h2>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            className="btn btn-secondary"
-            onClick={() => downloadMoraZip()}
-          >
+          <button className="btn btn-secondary" onClick={() => downloadMoraZip()}>
             <Download size={16} />Exportar ZIP
           </button>
-          <button
-            className="btn btn-secondary"
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
+          <button className="btn btn-secondary" onClick={handleRefresh} disabled={refreshing}>
             <RefreshCw size={16} className={refreshing ? 'spinning' : ''} />
             {refreshing ? 'Verificando...' : 'Verificar Mora'}
           </button>
         </div>
       </div>
 
-      {totalMora > 0 && (
+      {totalClientes > 0 && (
         <div className="card-grid" style={{ marginBottom: 20 }}>
           <div className="stat-card">
-            <div className="stat-label">Cuotas en Mora</div>
-            <div className="stat-value danger">{totalMora}</div>
+            <div className="stat-label">Clientes en Mora</div>
+            <div className="stat-value danger">{totalClientes}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Monto Total en Mora</div>
@@ -107,14 +92,13 @@ export default function MoraPage() {
         </div>
       )}
 
-      {/* Buscador */}
       <div className="filter-bar">
         <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             className="form-control"
             style={{ paddingLeft: 32 }}
-            placeholder="Buscar por cliente..."
+            placeholder="Buscar por cliente o DNI..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -127,12 +111,12 @@ export default function MoraPage() {
       </div>
 
       {loading ? (
-        <SkeletonTable rows={PAGE_SIZE} cols={7} />
-      ) : cuotas.length === 0 ? (
+        <SkeletonTable rows={PAGE_SIZE} cols={5} />
+      ) : clientes.length === 0 ? (
         <div className="empty-state">
           <AlertTriangle size={40} />
-          <h3>Sin cuotas en mora</h3>
-          <p>{search ? 'No hay resultados para esa búsqueda' : 'No hay cuotas vencidas actualmente'}</p>
+          <h3>Sin clientes en mora</h3>
+          <p>{search ? 'No hay resultados para esa búsqueda' : 'No hay clientes con cuotas vencidas'}</p>
         </div>
       ) : (
         <>
@@ -141,37 +125,36 @@ export default function MoraPage() {
               <thead>
                 <tr>
                   <th>Cliente</th>
-                  <th>Préstamo</th>
-                  <th>Cuota #</th>
-                  <th>Vencimiento</th>
-                  <th>Monto</th>
-                  <th>Días Atraso</th>
+                  <th>DNI</th>
+                  <th>Cuotas vencidas</th>
+                  <th>Monto total</th>
+                  <th>Días en mora</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {cuotas.map((c) => (
-                  <tr key={c.cuota_id}>
+                {clientes.map((c) => (
+                  <tr key={c.cliente_id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/clientes/${c.cliente_id}`)}>
                     <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                      <User size={13} style={{ marginRight: 5, verticalAlign: -1, color: 'var(--text-muted)' }} />
                       {c.cliente_nombre}
                     </td>
-                    <td className="text-mono">#{c.prestamo_id}</td>
-                    <td className="text-mono">#{c.numero_cuota}</td>
+                    <td className="text-mono">{c.cliente_dni}</td>
                     <td>
-                      {new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR')}
+                      <span className="badge badge-danger">{c.cuotas_en_mora} cuota{c.cuotas_en_mora !== 1 ? 's' : ''}</span>
                     </td>
-                    <td className="text-mono">{formatMoney(c.monto)}</td>
+                    <td className="text-mono">{formatMoney(c.monto_total)}</td>
                     <td>
                       <span className={`badge ${c.dias_atraso > 30 ? 'badge-danger' : 'badge-warning'}`}>
                         {c.dias_atraso} días
                       </span>
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <button
                         className="btn btn-secondary btn-sm"
-                        onClick={() => navigate(`/prestamos/${c.prestamo_id}`)}
+                        onClick={() => navigate(`/clientes/${c.cliente_id}`)}
                       >
-                        Ver préstamo
+                        Ver cliente
                       </button>
                     </td>
                   </tr>
@@ -182,23 +165,15 @@ export default function MoraPage() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-              >
+              <button className="btn btn-secondary btn-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
                 Anterior
               </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= totalPages - 1}
-              >
+              <button className="btn btn-secondary btn-sm" onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages - 1}>
                 Siguiente
               </button>
             </div>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-              Página {page + 1} de {totalPages} · {totalMora} cuota{totalMora !== 1 ? 's' : ''}
+              Página {page + 1} de {Math.max(1, totalPages)} · {totalClientes} cliente{totalClientes !== 1 ? 's' : ''}
             </div>
           </div>
         </>

@@ -6,6 +6,75 @@ from models.prestamo import Prestamo
 from models.client import Cliente
 
 
+def obtener_clientes_en_mora(
+    db: Session,
+    search: str = "",
+    limit: int = 10,
+    offset: int = 0,
+) -> dict:
+    """
+    Retorna un cliente por fila (agrupado) con cuotas en mora.
+    """
+    hoy = date.today()
+
+    filters = [Cuota.estado == "vencida"]
+    if search:
+        term = f"%{search}%"
+        filters.append(
+            or_(
+                (Cliente.nombre + " " + Cliente.apellido).ilike(term),
+                Cliente.dni.ilike(term),
+            )
+        )
+
+    base = (
+        db.query(
+            Cliente.id.label("cliente_id"),
+            Cliente.nombre.label("nombre"),
+            Cliente.apellido.label("apellido"),
+            Cliente.dni.label("dni"),
+            sqlfunc.count(Cuota.id).label("cuotas_en_mora"),
+            sqlfunc.sum(Cuota.monto).label("monto_total"),
+            sqlfunc.min(Cuota.fecha_vencimiento).label("fecha_primera_mora"),
+        )
+        .select_from(Cuota)
+        .join(Prestamo, Cuota.prestamo_id == Prestamo.id)
+        .join(Cliente, Prestamo.cliente_id == Cliente.id)
+        .filter(*filters)
+        .group_by(Cliente.id, Cliente.nombre, Cliente.apellido, Cliente.dni)
+    )
+
+    # Count distinct clients
+    total = db.query(sqlfunc.count()).select_from(base.subquery()).scalar() or 0
+
+    rows = (
+        base
+        .order_by(Cliente.apellido, Cliente.nombre)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    total_monto = db.query(
+        sqlfunc.coalesce(sqlfunc.sum(Cuota.monto), 0)
+    ).select_from(Cuota).join(Prestamo, Cuota.prestamo_id == Prestamo.id).join(
+        Cliente, Prestamo.cliente_id == Cliente.id
+    ).filter(*filters).scalar()
+
+    items = [
+        {
+            "cliente_id": r.cliente_id,
+            "cliente_nombre": f"{r.nombre} {r.apellido}",
+            "cliente_dni": r.dni,
+            "cuotas_en_mora": r.cuotas_en_mora,
+            "monto_total": float(r.monto_total or 0),
+            "dias_atraso": (hoy - r.fecha_primera_mora).days if r.fecha_primera_mora else 0,
+        }
+        for r in rows
+    ]
+    return {"total": total, "total_monto": float(total_monto or 0), "clientes": items}
+
+
 def verificar_mora(db: Session) -> list[dict]:
     """
     Marca en bulk las cuotas pendientes vencidas como 'vencida'.

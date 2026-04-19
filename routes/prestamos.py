@@ -449,6 +449,8 @@ def listar_prestamos(
     cliente_id: Optional[int] = Query(None),
     tipo_prestamo: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query(None, description="id | monto | cliente"),
+    sort_desc: bool = Query(True),
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
@@ -472,7 +474,14 @@ def listar_prestamos(
                 cast(Prestamo.id, String).ilike(term),
             )
         )
-    items = q.order_by(Prestamo.id.desc()).offset(offset).limit(limit).all()
+
+    if sort_by == "monto":
+        order_col = Prestamo.monto.desc() if sort_desc else Prestamo.monto
+    elif sort_by == "cliente":
+        order_col = (Cliente.apellido.desc() if sort_desc else Cliente.apellido)
+    else:  # default: id
+        order_col = Prestamo.id.desc() if sort_desc else Prestamo.id
+    items = q.order_by(order_col).offset(offset).limit(limit).all()
 
     # Batch-fetch cuota counts to avoid N+1
     cuotas_stats: dict = {}
