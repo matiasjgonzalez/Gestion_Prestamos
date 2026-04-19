@@ -85,9 +85,11 @@ export default function Layout() {
             Calculadora
           </button>
           {isAdmin && (
-            <button className="sidebar-link" onClick={downloadBackup} title="Descargar backup completo en Excel">
+            <button className="sidebar-link" onClick={() =>
+              downloadBackup().catch(() => alert('Error al generar el backup'))
+            } title="Descargar backup completo (ZIP con Excel + PDFs)">
               <DatabaseBackup />
-              Backup Excel
+              Backup ZIP
             </button>
           )}
         </div>
@@ -189,10 +191,10 @@ export default function Layout() {
             {isAdmin && (
               <button
                 className="bottom-sheet-item"
-                onClick={() => { downloadBackup(); closeMore(); }}
+                onClick={() => { downloadBackup().catch(() => alert('Error al generar el backup')); closeMore(); }}
               >
                 <DatabaseBackup size={20} />
-                Backup Excel
+                Backup ZIP
               </button>
             )}
 

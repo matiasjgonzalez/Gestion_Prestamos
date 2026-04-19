@@ -165,12 +165,20 @@ export const changePassword = (new_password) =>
 
 export const getMe = () => api.get('/auth/me');
 
-// ─── Export Excel ───
+// ─── Export Excel / Archivos ───
 export async function downloadExcel(url, filename) {
   const token = localStorage.getItem('token');
   const res = await fetch(`${API_URL}${url}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  if (!res.ok) {
+    let detail = 'Error al descargar el archivo';
+    try {
+      const json = await res.json();
+      detail = json.detail || detail;
+    } catch (_) {}
+    throw new Error(detail);
+  }
   const blob = await res.blob();
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
@@ -193,7 +201,7 @@ export const importClientes = (file) => {
 };
 
 export const downloadBackup = () =>
-  downloadExcel('/backup/xlsx', `backup_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  downloadExcel('/backup/zip', `backup_${new Date().toISOString().slice(0, 10)}.zip`);
 
 // ─── Pagos ───
 export const registrarPago = (data) => {

@@ -174,7 +174,11 @@ export default function ClientesPage() {
       <div className="page-header">
         <h2>Clientes</h2>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-secondary" onClick={() => downloadExcel('/clientes/export/xlsx', 'clientes.xlsx')}>
+          <button className="btn btn-secondary" onClick={() =>
+            downloadExcel('/clientes/export/xlsx', 'clientes.xlsx').catch((err) =>
+              toast.error(err.message || 'Error al exportar')
+            )
+          }>
             <Download size={16} />Exportar
           </button>
           <button className="btn btn-secondary" onClick={downloadTemplate} title="Descargar plantilla Excel para importar">
