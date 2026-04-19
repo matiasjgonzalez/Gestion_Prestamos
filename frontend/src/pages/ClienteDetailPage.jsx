@@ -101,7 +101,6 @@ export default function ClienteDetailPage() {
           </button>
           <div>
             <h2>{cliente.nombre} {cliente.apellido}</h2>
-            <span className="text-sm text-muted">DNI {cliente.dni}</span>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -130,6 +129,10 @@ export default function ClienteDetailPage() {
       {/* Info del cliente */}
       <div className="card mb-16">
         <div className="detail-grid">
+          <div className="detail-item">
+            <label>DNI</label>
+            <span className="text-mono">{cliente.dni}</span>
+          </div>
           <div className="detail-item">
             <label>Teléfono</label>
             <span>
@@ -202,22 +205,38 @@ export default function ClienteDetailPage() {
         ].map(({ tipo, label }) => {
           const archivo = archivosPorTipo[tipo];
           return (
-            <div key={tipo} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div key={tipo} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* Título */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {archivo
                   ? <FileCheck size={18} style={{ color: 'var(--success)', flexShrink: 0 }} />
                   : <FileText size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
                 <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{label}</span>
               </div>
+
+              {/* Info archivo */}
               {archivo ? (
-                <>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', wordBreak: 'break-all' }}>
-                    {archivo.nombre_archivo}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Subido: {new Date(archivo.fecha_subida).toLocaleDateString('es-AR')}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  <div style={{ wordBreak: 'break-all' }}>{archivo.nombre_archivo}</div>
+                  <div>Subido: {new Date(archivo.fecha_subida).toLocaleDateString('es-AR')}</div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Sin archivo cargado</div>
+              )}
+
+              {/* Input oculto */}
+              <input
+                ref={fileInputRefs[tipo]}
+                type="file"
+                accept="application/pdf"
+                style={{ display: 'none' }}
+                onChange={(e) => handleSubirArchivo(tipo, e.target.files[0])}
+              />
+
+              {/* Botones */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                {archivo ? (
+                  <>
                     <button
                       className="btn btn-secondary btn-sm"
                       disabled={descargando[tipo]}
@@ -227,58 +246,33 @@ export default function ClienteDetailPage() {
                       {descargando[tipo] ? 'Descargando...' : 'Descargar'}
                     </button>
                     <button
-                      className="btn btn-sm"
-                      style={{ color: 'var(--danger)', background: 'transparent', border: '1px solid var(--danger)' }}
-                      onClick={() => handleEliminarArchivo(tipo)}
-                    >
-                      <Trash2 size={13} />
-                      Eliminar
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Sin archivo cargado</div>
-                  <div style={{ marginTop: 4 }}>
-                    <input
-                      ref={fileInputRefs[tipo]}
-                      type="file"
-                      accept="application/pdf"
-                      style={{ display: 'none' }}
-                      onChange={(e) => handleSubirArchivo(tipo, e.target.files[0])}
-                    />
-                    <button
                       className="btn btn-secondary btn-sm"
                       disabled={subiendo[tipo]}
                       onClick={() => fileInputRefs[tipo].current?.click()}
                     >
                       <Upload size={13} />
-                      {subiendo[tipo] ? 'Subiendo...' : 'Subir PDF'}
+                      {subiendo[tipo] ? 'Subiendo...' : 'Reemplazar'}
                     </button>
-                  </div>
-                </>
-              )}
-              {/* Reemplazar si ya existe */}
-              {archivo && (
-                <div style={{ marginTop: 2 }}>
-                  <input
-                    ref={fileInputRefs[tipo]}
-                    type="file"
-                    accept="application/pdf"
-                    style={{ display: 'none' }}
-                    onChange={(e) => handleSubirArchivo(tipo, e.target.files[0])}
-                  />
+                    <button
+                      className="btn btn-sm"
+                      style={{ color: 'var(--danger)', background: 'transparent', border: '1px solid var(--danger)', borderRadius: 'var(--radius-sm)', padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.8rem' }}
+                      onClick={() => handleEliminarArchivo(tipo)}
+                    >
+                      <Trash2 size={13} />
+                      Eliminar
+                    </button>
+                  </>
+                ) : (
                   <button
                     className="btn btn-secondary btn-sm"
                     disabled={subiendo[tipo]}
                     onClick={() => fileInputRefs[tipo].current?.click()}
-                    style={{ fontSize: '0.75rem' }}
                   >
-                    <Upload size={12} />
-                    {subiendo[tipo] ? 'Subiendo...' : 'Reemplazar'}
+                    <Upload size={13} />
+                    {subiendo[tipo] ? 'Subiendo...' : 'Subir PDF'}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           );
         })}

@@ -9,11 +9,12 @@ import {
   updateCuota,
   refinanciarPrestamo,
   invalidateCache,
+  updateNotas,
 } from '../services/api';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, Pencil, RotateCcw, GitMerge, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, Pencil, RotateCcw, GitMerge, ChevronDown, ChevronUp, FileText, Save } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
@@ -38,6 +39,9 @@ export default function PrestamoDetailPage() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [editCuota, setEditCuota] = useState(null); // {id, numero_cuota, fecha_vencimiento, _original}
   const [showAllCuotas, setShowAllCuotas] = useState(false);
+  const [notas, setNotas] = useState('');
+  const [notasDirty, setNotasDirty] = useState(false);
+  const [savingNotas, setSavingNotas] = useState(false);
   const [showRefinanciarModal, setShowRefinanciarModal] = useState(false);
   const [refForm, setRefForm] = useState({ numCuotas: '1', montoPorCuota: '', fechaInicio: '', tipo: 'mensual' });
   const [refFechas, setRefFechas] = useState(['']);
@@ -49,6 +53,8 @@ export default function PrestamoDetailPage() {
     try {
       const res = await getPrestamoCompleto(id);
       setData(res.data);
+      setNotas(res.data.prestamo?.notas || '');
+      setNotasDirty(false);
     } catch {
       toast.error('Error al cargar préstamo');
       navigate('/prestamos');
@@ -140,8 +146,14 @@ export default function PrestamoDetailPage() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await updateCuota(id, editCuota.id, { fecha_vencimiento: editCuota.fecha_vencimiento });
-      toast.success(`Fecha de cuota #${editCuota.numero_cuota} actualizada`);
+      const payload = { fecha_vencimiento: editCuota.fecha_vencimiento };
+      if (editCuota.monto !== editCuota._originalMonto) {
+        const m = parseFloat(editCuota.monto);
+        if (!m || m <= 0) { toast.error('El monto debe ser mayor a 0'); setSubmitting(false); return; }
+        payload.monto = m;
+      }
+      await updateCuota(id, editCuota.id, payload);
+      toast.success(`Cuota #${editCuota.numero_cuota} actualizada`);
       setEditCuota(null);
       reload();
     } catch (err) {
@@ -323,6 +335,45 @@ export default function PrestamoDetailPage() {
         </div>
       </div>
 
+      {/* Notas */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
+            <FileText size={16} style={{ marginRight: 6, verticalAlign: -2 }} />Notas
+          </h3>
+          {notasDirty && (
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={savingNotas}
+              onClick={async () => {
+                setSavingNotas(true);
+                try {
+                  await updateNotas(id, notas);
+                  toast.success('Notas guardadas');
+                  setNotasDirty(false);
+                  invalidateCache(`/prestamos/${id}`);
+                } catch {
+                  toast.error('Error al guardar notas');
+                } finally {
+                  setSavingNotas(false);
+                }
+              }}
+            >
+              <Save size={13} />
+              {savingNotas ? 'Guardando...' : 'Guardar'}
+            </button>
+          )}
+        </div>
+        <textarea
+          className="form-control"
+          rows={4}
+          placeholder="Ej: Cuota 4 — interés por mora $40.000. Cuota 6 — interés $60.000..."
+          value={notas}
+          onChange={(e) => { setNotas(e.target.value); setNotasDirty(true); }}
+          style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: '0.88rem', lineHeight: 1.6 }}
+        />
+      </div>
+
       {/* Cuotas */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
@@ -370,7 +421,7 @@ export default function PrestamoDetailPage() {
                       <button
                         className="btn-icon"
                         title="Editar fecha"
-                        onClick={() => setEditCuota({ id: c.id, numero_cuota: c.numero_cuota, fecha_vencimiento: c.fecha_vencimiento, _original: c.fecha_vencimiento })}
+                        onClick={() => setEditCuota({ id: c.id, numero_cuota: c.numero_cuota, fecha_vencimiento: c.fecha_vencimiento, _original: c.fecha_vencimiento, monto: String(c.monto), _originalMonto: String(c.monto) })}
                         disabled={submitting}
                       >
                         <Pencil size={13} />
@@ -452,23 +503,43 @@ export default function PrestamoDetailPage() {
       {/* Modal editar cuota */}
       {editCuota && (
         <Modal title={`Editar Cuota #${editCuota.numero_cuota}`} onClose={() => {
-          if (editCuota.fecha_vencimiento !== editCuota._original) {
-            if (!window.confirm('¿Descartar cambios?')) return;
-          }
+          const dirty = editCuota.fecha_vencimiento !== editCuota._original || editCuota.monto !== editCuota._originalMonto;
+          if (dirty && !window.confirm('¿Descartar cambios?')) return;
           setEditCuota(null);
         }}>
           <form onSubmit={handleEditCuota}>
-            <div className="form-group">
-              <label>Fecha de Vencimiento</label>
-              <input
-                className="form-control"
-                type="date"
-                value={editCuota.fecha_vencimiento}
-                onChange={(e) => setEditCuota((prev) => ({ ...prev, fecha_vencimiento: e.target.value }))}
-                required
-                autoFocus
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label>Fecha de Vencimiento</label>
+                <input
+                  className="form-control"
+                  type="date"
+                  value={editCuota.fecha_vencimiento}
+                  onChange={(e) => setEditCuota((prev) => ({ ...prev, fecha_vencimiento: e.target.value }))}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label>Monto</label>
+                <input
+                  className="form-control no-spinner"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={editCuota.monto}
+                  onChange={(e) => setEditCuota((prev) => ({ ...prev, monto: e.target.value }))}
+                  required
+                />
+              </div>
             </div>
+            {editCuota.monto !== editCuota._originalMonto && (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                Monto original: <strong>{formatMoney(parseFloat(editCuota._originalMonto))}</strong>
+                {' → '}
+                Nuevo: <strong style={{ color: 'var(--accent)' }}>{formatMoney(parseFloat(editCuota.monto) || 0)}</strong>
+              </div>
+            )}
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setEditCuota(null)}>Cancelar</button>
               <button type="submit" className="btn btn-primary" disabled={submitting}>

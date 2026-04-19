@@ -130,6 +130,11 @@ export const updateCuota = (prestamoId, cuotaId, data) => {
   return api.put(`/prestamos/${prestamoId}/cuotas/${cuotaId}`, data);
 };
 
+export const updateNotas = (prestamoId, notas) => {
+  invalidateCache(`/prestamos/${prestamoId}`);
+  return api.patch(`/prestamos/${prestamoId}/notas`, { notas });
+};
+
 export const getClienteResumen = (id) => cachedGet(`/clientes/${id}/resumen`);
 
 // ─── Usuarios ───

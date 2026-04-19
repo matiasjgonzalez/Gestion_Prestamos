@@ -46,11 +46,12 @@ def listar_mora_clientes(
     search: str = "",
     limit: int = 10,
     offset: int = 0,
+    sort_desc: bool = False,
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
     """Un cliente por fila con resumen de cuotas en mora."""
-    result = obtener_clientes_en_mora(db, search=search, limit=limit, offset=offset)
+    result = obtener_clientes_en_mora(db, search=search, limit=limit, offset=offset, sort_desc=sort_desc)
     return {
         "total_clientes": result["total"],
         "total_monto_mora": result["total_monto"],

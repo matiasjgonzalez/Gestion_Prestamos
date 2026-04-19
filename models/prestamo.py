@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, ForeignKey, String, Date, Numeric
+from sqlalchemy import Column, Integer, Float, ForeignKey, String, Date, Numeric, Text
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -17,6 +17,7 @@ class Prestamo(Base):
     fecha_inicio = Column(Date, nullable=True)
     estado = Column(String(30), nullable=False, default="activo", index=True)
     tipo_prestamo = Column(String(20), nullable=False, default="mensual", index=True)
+    notas = Column(Text, nullable=True)
 
     cliente = relationship("Cliente", back_populates="prestamos")
     cuotas_rel = relationship(

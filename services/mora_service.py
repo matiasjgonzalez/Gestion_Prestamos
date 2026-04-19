@@ -11,6 +11,7 @@ def obtener_clientes_en_mora(
     search: str = "",
     limit: int = 10,
     offset: int = 0,
+    sort_desc: bool = False,
 ) -> dict:
     """
     Retorna un cliente por fila (agrupado) con cuotas en mora.
@@ -47,9 +48,10 @@ def obtener_clientes_en_mora(
     # Count distinct clients
     total = db.query(sqlfunc.count()).select_from(base.subquery()).scalar() or 0
 
+    order = (Cliente.apellido.desc(), Cliente.nombre.desc()) if sort_desc else (Cliente.apellido, Cliente.nombre)
     rows = (
         base
-        .order_by(Cliente.apellido, Cliente.nombre)
+        .order_by(*order)
         .offset(offset)
         .limit(limit)
         .all()

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { verificarMora, getMoraClientes, downloadMoraZip, invalidateCache } from '../services/api';
 import toast from 'react-hot-toast';
-import { AlertTriangle, RefreshCw, Download, Search, X, User } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Download, Search, X, ArrowUpAZ, ArrowDownAZ } from 'lucide-react';
 import { formatMoney, useDebounce } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
 
@@ -16,11 +16,12 @@ export default function MoraPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [sortDesc, setSortDesc] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
   const navigate = useNavigate();
 
-  useEffect(() => { setPage(0); }, [debouncedSearch]);
-  useEffect(() => { loadMora(); }, [page, debouncedSearch]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, sortDesc]);
+  useEffect(() => { loadMora(); }, [page, debouncedSearch, sortDesc]);
 
   const loadMora = async () => {
     setLoading(true);
@@ -29,6 +30,7 @@ export default function MoraPage() {
         search: debouncedSearch,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
+        sort_desc: sortDesc,
       });
       setClientes(res.data.clientes);
       setTotalClientes(res.data.total_clientes);
@@ -124,7 +126,13 @@ export default function MoraPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Apellido</th>
+                  <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                      onClick={() => { setSortDesc(d => !d); setPage(0); }}>
+                    Apellido
+                    {sortDesc
+                      ? <ArrowDownAZ size={13} style={{ marginLeft: 4, verticalAlign: -1 }} />
+                      : <ArrowUpAZ size={13} style={{ marginLeft: 4, verticalAlign: -1 }} />}
+                  </th>
                   <th>Nombre</th>
                   <th>DNI</th>
                   <th>Cuotas vencidas</th>
