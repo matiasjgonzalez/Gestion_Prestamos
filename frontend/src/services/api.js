@@ -179,6 +179,22 @@ export async function downloadExcel(url, filename) {
   URL.revokeObjectURL(link.href);
 }
 
+// ─── Importación / Backup ───
+export const downloadTemplate = () =>
+  downloadExcel('/clientes/import/template', 'plantilla_clientes.xlsx');
+
+export const importClientes = (file) => {
+  invalidateCache('/clientes');
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/clientes/import/xlsx', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const downloadBackup = () =>
+  downloadExcel('/backup/xlsx', `backup_${new Date().toISOString().slice(0, 10)}.xlsx`);
+
 // ─── Pagos ───
 export const registrarPago = (data) => {
   invalidateCache('/prestamos');

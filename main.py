@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal
-from routes import auth, clientes, prestamos, pagos, mora, usuarios, calendario
+from routes import auth, clientes, prestamos, pagos, mora, usuarios, calendario, backup
 from contextlib import asynccontextmanager
 
 import models  # noqa: F401
@@ -93,6 +93,7 @@ app.include_router(pagos.router, prefix="/pagos", tags=["Pagos"])
 app.include_router(mora.router, prefix="/mora", tags=["Mora"])
 app.include_router(usuarios.router, prefix="/usuarios", tags=["Usuarios"])
 app.include_router(calendario.router, prefix="/calendario", tags=["Calendario"])
+app.include_router(backup.router, prefix="/backup", tags=["Backup"])
 
 
 @app.get("/")

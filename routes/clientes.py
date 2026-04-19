@@ -319,6 +319,156 @@ def estado_cuenta_xlsx(
     )
 
 
+@router.get("/import/template")
+def download_import_template(
+    _user=Depends(get_current_user),
+):
+    """Descarga una plantilla Excel para importación masiva de clientes."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Clientes"
+
+    headers = ["Nombre (*)", "Apellido (*)", "DNI (*)", "Teléfono", "Domicilio", "Empleo"]
+    required_fill = PatternFill("solid", fgColor="0284C7")
+    optional_fill = PatternFill("solid", fgColor="334155")
+    header_font = Font(bold=True, color="FFFFFF")
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = required_fill if "(*)" in h else optional_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+
+    # Fila de ejemplo
+    ws.append(["Juan", "Pérez", "12345678", "351-1234567", "Av. Colón 123", "Comerciante"])
+
+    # Nota al pie
+    ws.cell(row=3, column=1, value="(*) Campos obligatorios. El DNI debe ser único.")
+    ws.cell(row=3, column=1).font = Font(italic=True, color="94A3B8", size=9)
+
+    for col in ws.columns:
+        ws.column_dimensions[col[0].column_letter].width = max(
+            len(str(c.value or "")) for c in col
+        ) + 6
+
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    return StreamingResponse(
+        iter([out.read()]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=plantilla_clientes.xlsx"},
+    )
+
+
+@router.post("/import/xlsx")
+async def import_clientes_xlsx(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Importa clientes desde un archivo Excel. Devuelve resumen de creados / saltados / errores."""
+    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Solo se aceptan archivos Excel (.xlsx / .xls)")
+
+    contenido = await file.read()
+    if len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="El archivo no puede superar 5 MB")
+
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contenido), read_only=True, data_only=True)
+        ws = wb.active
+    except Exception:
+        raise HTTPException(status_code=400, detail="No se pudo leer el archivo Excel")
+
+    # Buscar fila de encabezado (primera fila no vacía)
+    rows = list(ws.iter_rows(values_only=True))
+    if len(rows) < 2:
+        raise HTTPException(status_code=400, detail="El archivo está vacío o solo tiene encabezado")
+
+    # Detectar columnas por nombre de encabezado (flexible, sin importar el orden)
+    header = [str(c).strip().lower().replace("(*)", "").strip() if c else "" for c in rows[0]]
+    col_map = {}
+    aliases = {
+        "nombre": ["nombre"],
+        "apellido": ["apellido"],
+        "dni": ["dni"],
+        "telefono": ["teléfono", "telefono", "tel", "celular"],
+        "domicilio": ["domicilio", "dirección", "direccion"],
+        "empleo": ["empleo", "ocupación", "ocupacion", "trabajo"],
+    }
+    for field, possible in aliases.items():
+        for i, h in enumerate(header):
+            if h in possible:
+                col_map[field] = i
+                break
+
+    missing = [f for f in ["nombre", "apellido", "dni"] if f not in col_map]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se encontraron las columnas requeridas: {', '.join(missing)}. "
+                   f"Asegurate de usar la plantilla descargada."
+        )
+
+    # Pre-cargar DNIs existentes para validación rápida
+    dni_existentes = set(r[0] for r in db.query(Cliente.dni).all())
+
+    creados, saltados, errores = 0, 0, []
+
+    for fila_num, row in enumerate(rows[1:], start=2):
+        # Saltar filas de nota/vacías
+        if all(c is None or str(c).strip() == "" for c in row):
+            continue
+        if str(row[col_map["nombre"]] or "").strip().startswith("("):
+            continue
+
+        def get(field):
+            idx = col_map.get(field)
+            val = row[idx] if idx is not None and idx < len(row) else None
+            return str(val).strip() if val is not None else ""
+
+        nombre = get("nombre")
+        apellido = get("apellido")
+        dni = get("dni")
+
+        if not nombre or not apellido or not dni:
+            errores.append(f"Fila {fila_num}: Nombre, Apellido y DNI son obligatorios")
+            continue
+
+        if dni in dni_existentes:
+            saltados += 1
+            continue
+
+        try:
+            nuevo = Cliente(
+                nombre=nombre,
+                apellido=apellido,
+                dni=dni,
+                telefono=get("telefono") or None,
+                domicilio=get("domicilio") or None,
+                empleo=get("empleo") or None,
+            )
+            db.add(nuevo)
+            db.flush()
+            dni_existentes.add(dni)
+            creados += 1
+        except Exception as e:
+            errores.append(f"Fila {fila_num}: {str(e)}")
+
+    if creados > 0:
+        db.commit()
+    else:
+        db.rollback()
+
+    return {
+        "creados": creados,
+        "saltados_dni_duplicado": saltados,
+        "errores": errores,
+        "total_procesadas": creados + saltados + len(errores),
+    }
+
+
 @router.delete("/{cliente_id}")
 def delete_cliente(
     cliente_id: int,

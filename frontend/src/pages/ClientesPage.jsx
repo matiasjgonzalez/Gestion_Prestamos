@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getClientes,
@@ -6,11 +6,13 @@ import {
   updateCliente,
   deleteCliente,
   downloadExcel,
+  downloadTemplate,
+  importClientes,
 } from '../services/api';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { Plus, Search, Pencil, Trash2, Eye, Users, Download, FileCheck, ArrowUpAZ, ArrowDownAZ } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, Users, Download, FileCheck, ArrowUpAZ, ArrowDownAZ, Upload, FileSpreadsheet } from 'lucide-react';
 import { useDebounce } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
 
@@ -37,6 +39,9 @@ export default function ClientesPage() {
   const [form, setForm] = useState({ ...emptyForm });
   const [errors, setErrors] = useState({});
   const [confirmModal, setConfirmModal] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const importRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -147,13 +152,37 @@ export default function ClientesPage() {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
+  const handleImportFile = async (e) => {
+    const file = e.target.files[0];
+    if (!importRef.current) return;
+    importRef.current.value = '';
+    if (!file) return;
+    setImporting(true);
+    try {
+      const res = await importClientes(file);
+      setImportResult(res.data);
+      loadClientes(debouncedSearch, page);
+    } catch (err) {
+      toast.error(err.userMessage || 'Error al importar');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div>
       <div className="page-header">
         <h2>Clientes</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={() => downloadExcel('/clientes/export/xlsx', 'clientes.xlsx')}>
-            <Download size={16} />Exportar Excel
+            <Download size={16} />Exportar
+          </button>
+          <button className="btn btn-secondary" onClick={downloadTemplate} title="Descargar plantilla Excel para importar">
+            <FileSpreadsheet size={16} />Plantilla
+          </button>
+          <input ref={importRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFile} />
+          <button className="btn btn-secondary" onClick={() => importRef.current?.click()} disabled={importing}>
+            <Upload size={16} />{importing ? 'Importando...' : 'Importar Excel'}
           </button>
           <button className="btn btn-primary" onClick={openCreate}>
             <Plus size={16} />Nuevo Cliente
@@ -270,6 +299,34 @@ export default function ClientesPage() {
           onConfirm={confirmModal.onConfirm}
           onCancel={() => setConfirmModal(null)}
         />
+      )}
+
+      {importResult && (
+        <Modal title="Resultado de importación" onClose={() => setImportResult(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="stat-card" style={{ padding: '12px 16px' }}>
+                <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--success)' }}>{importResult.creados}</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Clientes creados</div>
+              </div>
+              <div className="stat-card" style={{ padding: '12px 16px' }}>
+                <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--warning)' }}>{importResult.saltados_dni_duplicado}</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>DNI duplicados (saltados)</div>
+              </div>
+              <div className="stat-card" style={{ padding: '12px 16px' }}>
+                <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--danger)' }}>{importResult.errores}</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Errores</div>
+              </div>
+              <div className="stat-card" style={{ padding: '12px 16px' }}>
+                <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>{importResult.total_procesadas}</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Filas procesadas</div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setImportResult(null)}>Cerrar</button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {showModal && (

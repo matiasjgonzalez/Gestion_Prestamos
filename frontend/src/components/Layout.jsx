@@ -17,7 +17,9 @@ import {
   CalendarDays,
   MoreHorizontal,
   Search,
+  DatabaseBackup,
 } from 'lucide-react';
+import { downloadBackup } from '../services/api';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -77,11 +79,17 @@ export default function Layout() {
             </NavLink>
           )}
         </nav>
-        <div style={{ padding: '0 12px 8px' }}>
+        <div style={{ padding: '0 12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           <button className="sidebar-link" onClick={() => setShowCalc(true)}>
             <Calculator />
             Calculadora
           </button>
+          {isAdmin && (
+            <button className="sidebar-link" onClick={downloadBackup} title="Descargar backup completo en Excel">
+              <DatabaseBackup />
+              Backup Excel
+            </button>
+          )}
         </div>
         <div className="sidebar-footer">
           <button className="theme-toggle" onClick={toggleTheme}>
@@ -176,6 +184,16 @@ export default function Layout() {
                 <ShieldCheck size={20} />
                 Usuarios
               </NavLink>
+            )}
+
+            {isAdmin && (
+              <button
+                className="bottom-sheet-item"
+                onClick={() => { downloadBackup(); closeMore(); }}
+              >
+                <DatabaseBackup size={20} />
+                Backup Excel
+              </button>
             )}
 
             <div className="bottom-sheet-divider" />
