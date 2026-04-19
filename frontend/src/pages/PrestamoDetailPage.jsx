@@ -584,7 +584,7 @@ export default function PrestamoDetailPage() {
                   {refFechas.map((fecha, idx) => (
                     <div key={idx} className="cuota-fecha-row">
                       <span className="cuota-num">#{idx + 1}</span>
-                      <input className="form-control date-input" type="date" value={fecha}
+                      <input className="form-control" type="date" value={fecha}
                         onChange={(e) => setRefFechas((prev) => prev.map((f, i) => i === idx ? e.target.value : f))} required />
                       <span className="cuota-monto-display">${Number(refForm.montoPorCuota).toLocaleString('es-AR')}</span>
                     </div>

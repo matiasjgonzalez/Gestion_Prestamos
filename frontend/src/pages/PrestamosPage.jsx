@@ -488,19 +488,17 @@ export default function PrestamosPage() {
                   {fechasCuotas.map((fecha, idx) => (
                     <div key={idx} className="cuota-fecha-row">
                       <span className="cuota-num">#{idx + 1}</span>
-                      <div className="date-input-wrap" style={{ flex: 1 }}>
-                        <input
-                          className="form-control date-input"
-                          type="date"
-                          value={fecha}
-                          onChange={(e) =>
-                            setFechasCuotas((prev) =>
-                              prev.map((f, i) => (i === idx ? e.target.value : f))
-                            )
-                          }
-                          required
-                        />
-                      </div>
+                      <input
+                        className="form-control"
+                        type="date"
+                        value={fecha}
+                        onChange={(e) =>
+                          setFechasCuotas((prev) =>
+                            prev.map((f, i) => (i === idx ? e.target.value : f))
+                          )
+                        }
+                        required
+                      />
                       <span className="cuota-monto-display">{formatMoney(getCuotaMonto(idx))}</span>
                     </div>
                   ))}
