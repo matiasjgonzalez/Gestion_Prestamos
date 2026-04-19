@@ -64,7 +64,8 @@ def obtener_clientes_en_mora(
     items = [
         {
             "cliente_id": r.cliente_id,
-            "cliente_nombre": f"{r.nombre} {r.apellido}",
+            "cliente_nombre": r.nombre,
+            "cliente_apellido": r.apellido,
             "cliente_dni": r.dni,
             "cuotas_en_mora": r.cuotas_en_mora,
             "monto_total": float(r.monto_total or 0),
@@ -173,7 +174,11 @@ def obtener_cuotas_en_mora(
                 if c.prestamo and c.prestamo.cliente else None
             ),
             "cliente_nombre": (
-                f"{c.prestamo.cliente.nombre} {c.prestamo.cliente.apellido}"
+                c.prestamo.cliente.nombre
+                if c.prestamo and c.prestamo.cliente else None
+            ),
+            "cliente_apellido": (
+                c.prestamo.cliente.apellido
                 if c.prestamo and c.prestamo.cliente else None
             ),
             "cliente_dni": (

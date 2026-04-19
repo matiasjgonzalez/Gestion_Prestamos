@@ -124,7 +124,8 @@ export default function MoraPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Cliente</th>
+                  <th>Apellido</th>
+                  <th>Nombre</th>
                   <th>DNI</th>
                   <th>Cuotas vencidas</th>
                   <th>Monto total</th>
@@ -135,10 +136,8 @@ export default function MoraPage() {
               <tbody>
                 {clientes.map((c) => (
                   <tr key={c.cliente_id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/clientes/${c.cliente_id}`)}>
-                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                      <User size={13} style={{ marginRight: 5, verticalAlign: -1, color: 'var(--text-muted)' }} />
-                      {c.cliente_nombre}
-                    </td>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{c.cliente_apellido}</td>
+                    <td style={{ color: 'var(--text-primary)' }}>{c.cliente_nombre}</td>
                     <td className="text-mono">{c.cliente_dni}</td>
                     <td>
                       <span className="badge badge-danger">{c.cuotas_en_mora} cuota{c.cuotas_en_mora !== 1 ? 's' : ''}</span>

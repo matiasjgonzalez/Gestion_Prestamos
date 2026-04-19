@@ -503,7 +503,8 @@ def listar_prestamos(
         {
             "id": p.id,
             "cliente_id": p.cliente_id,
-            "cliente_nombre": f"{p.cliente.nombre} {p.cliente.apellido}" if p.cliente else "—",
+            "cliente_nombre": p.cliente.nombre if p.cliente else "—",
+            "cliente_apellido": p.cliente.apellido if p.cliente else "—",
             "cliente_dni": p.cliente.dni if p.cliente else "—",
             "monto": float(p.monto),
             "interes_total": p.interes_total,

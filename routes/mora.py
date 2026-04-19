@@ -75,7 +75,7 @@ def export_mora_zip(
             continue
         if cid not in clientes_dict:
             clientes_dict[cid] = {
-                "nombre": c["cliente_nombre"],
+                "nombre": f"{c.get('cliente_apellido', '')} {c.get('cliente_nombre', '')}".strip(),
                 "dni": c["cliente_dni"],
                 "cuotas": 0,
                 "monto_total": 0.0,

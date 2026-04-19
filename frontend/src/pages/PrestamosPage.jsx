@@ -255,8 +255,9 @@ export default function PrestamosPage() {
                   ID {sortBy === 'id' && (sortDesc ? <ArrowDown01 size={12} style={{ verticalAlign: -1 }} /> : <ArrowUp01 size={12} style={{ verticalAlign: -1 }} />)}
                 </th>
                 <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { setSortBy('cliente'); setSortDesc(s => sortBy === 'cliente' ? !s : false); }}>
-                  Cliente {sortBy === 'cliente' && (sortDesc ? <ArrowDownAZ size={12} style={{ verticalAlign: -1 }} /> : <ArrowUpAZ size={12} style={{ verticalAlign: -1 }} />)}
+                  Apellido {sortBy === 'cliente' && (sortDesc ? <ArrowDownAZ size={12} style={{ verticalAlign: -1 }} /> : <ArrowUpAZ size={12} style={{ verticalAlign: -1 }} />)}
                 </th>
+                <th>Nombre</th>
                 <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => { setSortBy('monto'); setSortDesc(s => sortBy === 'monto' ? !s : true); }}>
                   Monto {sortBy === 'monto' && (sortDesc ? <ArrowDown01 size={12} style={{ verticalAlign: -1 }} /> : <ArrowUp01 size={12} style={{ verticalAlign: -1 }} />)}
                 </th>
@@ -266,8 +267,9 @@ export default function PrestamosPage() {
                 {prestamos.map((p) => (
                   <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/prestamos/${p.id}`)}>
                     <td className="text-mono">#{p.id}</td>
+                    <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{p.cliente_apellido || `#${p.cliente_id}`}</td>
                     <td>
-                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{p.cliente_nombre || `#${p.cliente_id}`}</div>
+                      <div style={{ color: 'var(--text-primary)' }}>{p.cliente_nombre}</div>
                       <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>DNI {p.cliente_dni}</div>
                     </td>
                     <td className="text-mono">{formatMoney(p.monto)}</td>

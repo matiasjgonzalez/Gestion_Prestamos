@@ -196,11 +196,12 @@ export default function ClientesPage() {
                 <tr>
                   <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
                       onClick={() => { setSortDesc(d => !d); setPage(0); }}>
-                    Nombre
+                    Apellido
                     {sortDesc
                       ? <ArrowDownAZ size={13} style={{ marginLeft: 4, verticalAlign: -1 }} />
                       : <ArrowUpAZ size={13} style={{ marginLeft: 4, verticalAlign: -1 }} />}
                   </th>
+                  <th>Nombre</th>
                   <th>DNI</th>
                   <th>Teléfono</th>
                   <th>Domicilio</th>
@@ -213,9 +214,8 @@ export default function ClientesPage() {
               <tbody>
                 {clientes.map((c) => (
                   <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/clientes/${c.id}`)}>
-                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {c.nombre} {c.apellido}
-                    </td>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{c.apellido}</td>
+                    <td style={{ color: 'var(--text-primary)' }}>{c.nombre}</td>
                     <td className="text-mono">{c.dni}</td>
                     <td>{c.telefono || '—'}</td>
                     <td>{c.domicilio || '—'}</td>
