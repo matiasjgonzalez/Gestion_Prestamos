@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { verificarMora, getMora, downloadExcel, invalidateCache } from '../services/api';
+import { verificarMora, getMora, downloadMoraZip, invalidateCache } from '../services/api';
 import toast from 'react-hot-toast';
 import { AlertTriangle, RefreshCw, Download, Search, X } from 'lucide-react';
 import { formatMoney, useDebounce } from '../utils/helpers';
@@ -79,9 +79,9 @@ export default function MoraPage() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             className="btn btn-secondary"
-            onClick={() => downloadExcel('/mora/export/xlsx', 'mora.xlsx')}
+            onClick={() => downloadMoraZip()}
           >
-            <Download size={16} />Exportar Excel
+            <Download size={16} />Exportar ZIP
           </button>
           <button
             className="btn btn-secondary"

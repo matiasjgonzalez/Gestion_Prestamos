@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCliente, getPrestamos, getClienteResumen, downloadEstadoCuenta } from '../services/api';
-import { ArrowLeft, Banknote, AlertTriangle, Phone, MapPin, Download, Briefcase } from 'lucide-react';
+import { getCliente, getPrestamos, getClienteResumen, downloadEstadoCuenta, getArchivos, subirArchivo, eliminarArchivo, downloadArchivo } from '../services/api';
+import { ArrowLeft, Banknote, AlertTriangle, Phone, MapPin, Download, Briefcase, FileText, Upload, Trash2, FileCheck } from 'lucide-react';
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
+import toast from 'react-hot-toast';
 
 function estadoBadge(estado) {
   if (estado === 'activo') return <span className="badge badge-default">Activo</span>;
@@ -16,26 +17,72 @@ export default function ClienteDetailPage() {
   const [cliente, setCliente] = useState(null);
   const [prestamos, setPrestamos] = useState([]);
   const [resumen, setResumen] = useState(null);
+  const [archivos, setArchivos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [subiendo, setSubiendo] = useState({});
+  const [descargando, setDescargando] = useState({});
+  const fileInputRefs = { pagare: useRef(), recibo_sueldo: useRef() };
 
   useEffect(() => { loadData(); }, [id]);
 
   const loadData = async () => {
     try {
-      const [cRes, pRes, rRes] = await Promise.allSettled([
+      const [cRes, pRes, rRes, aRes] = await Promise.allSettled([
         getCliente(id),
         getPrestamos({ cliente_id: parseInt(id), limit: 100, offset: 0 }),
         getClienteResumen(id),
+        getArchivos(id),
       ]);
       if (cRes.status === 'rejected') { navigate('/clientes'); return; }
       setCliente(cRes.value.data);
       if (pRes.status === 'fulfilled') setPrestamos(pRes.value.data);
       if (rRes.status === 'fulfilled') setResumen(rRes.value.data);
+      if (aRes.status === 'fulfilled') setArchivos(aRes.value.data);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSubirArchivo = async (tipo, file) => {
+    if (!file) return;
+    setSubiendo((s) => ({ ...s, [tipo]: true }));
+    try {
+      await subirArchivo(id, tipo, file);
+      toast.success('Archivo subido correctamente');
+      const res = await getArchivos(id);
+      setArchivos(res.data);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al subir archivo');
+    } finally {
+      setSubiendo((s) => ({ ...s, [tipo]: false }));
+      if (fileInputRefs[tipo]?.current) fileInputRefs[tipo].current.value = '';
+    }
+  };
+
+  const handleEliminarArchivo = async (tipo) => {
+    if (!window.confirm('¿Eliminar este archivo? No se puede deshacer.')) return;
+    try {
+      await eliminarArchivo(id, tipo);
+      toast.success('Archivo eliminado');
+      setArchivos((prev) => prev.filter((a) => a.tipo !== tipo));
+    } catch {
+      toast.error('Error al eliminar archivo');
+    }
+  };
+
+  const handleDescargarArchivo = async (tipo, nombreArchivo) => {
+    setDescargando((d) => ({ ...d, [tipo]: true }));
+    try {
+      await downloadArchivo(id, tipo, nombreArchivo);
+    } catch {
+      toast.error('Error al descargar archivo');
+    } finally {
+      setDescargando((d) => ({ ...d, [tipo]: false }));
+    }
+  };
+
+  const archivosPorTipo = archivos.reduce((acc, a) => { acc[a.tipo] = a; return acc; }, {});
 
   if (loading) return (
     <div>
@@ -142,6 +189,100 @@ export default function ClienteDetailPage() {
           )}
         </div>
       )}
+
+      {/* Documentos */}
+      <h3 style={{ marginBottom: 12, fontSize: '1.05rem' }}>
+        <FileText size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+        Documentos
+      </h3>
+      <div className="card-grid" style={{ marginBottom: 24 }}>
+        {[
+          { tipo: 'pagare', label: 'Pagaré' },
+          { tipo: 'recibo_sueldo', label: 'Recibo de Sueldo' },
+        ].map(({ tipo, label }) => {
+          const archivo = archivosPorTipo[tipo];
+          return (
+            <div key={tipo} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {archivo
+                  ? <FileCheck size={18} style={{ color: 'var(--success)', flexShrink: 0 }} />
+                  : <FileText size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
+                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{label}</span>
+              </div>
+              {archivo ? (
+                <>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', wordBreak: 'break-all' }}>
+                    {archivo.nombre_archivo}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Subido: {new Date(archivo.fecha_subida).toLocaleDateString('es-AR')}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={descargando[tipo]}
+                      onClick={() => handleDescargarArchivo(tipo, archivo.nombre_archivo)}
+                    >
+                      <Download size={13} />
+                      {descargando[tipo] ? 'Descargando...' : 'Descargar'}
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      style={{ color: 'var(--danger)', background: 'transparent', border: '1px solid var(--danger)' }}
+                      onClick={() => handleEliminarArchivo(tipo)}
+                    >
+                      <Trash2 size={13} />
+                      Eliminar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Sin archivo cargado</div>
+                  <div style={{ marginTop: 4 }}>
+                    <input
+                      ref={fileInputRefs[tipo]}
+                      type="file"
+                      accept="application/pdf"
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleSubirArchivo(tipo, e.target.files[0])}
+                    />
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={subiendo[tipo]}
+                      onClick={() => fileInputRefs[tipo].current?.click()}
+                    >
+                      <Upload size={13} />
+                      {subiendo[tipo] ? 'Subiendo...' : 'Subir PDF'}
+                    </button>
+                  </div>
+                </>
+              )}
+              {/* Reemplazar si ya existe */}
+              {archivo && (
+                <div style={{ marginTop: 2 }}>
+                  <input
+                    ref={fileInputRefs[tipo]}
+                    type="file"
+                    accept="application/pdf"
+                    style={{ display: 'none' }}
+                    onChange={(e) => handleSubirArchivo(tipo, e.target.files[0])}
+                  />
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={subiendo[tipo]}
+                    onClick={() => fileInputRefs[tipo].current?.click()}
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    <Upload size={12} />
+                    {subiendo[tipo] ? 'Subiendo...' : 'Reemplazar'}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {/* Préstamos */}
       <h3 style={{ marginBottom: 12, fontSize: '1.05rem' }}>

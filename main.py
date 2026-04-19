@@ -20,6 +20,17 @@ _MIGRATE_SQL = [
     "ALTER TABLE prestamos ADD COLUMN IF NOT EXISTS tipo_prestamo VARCHAR(20) NOT NULL DEFAULT 'mensual'",
     "ALTER TABLE pagos ADD COLUMN IF NOT EXISTS cuota_id INTEGER REFERENCES cuotas(id)",
     "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS empleo VARCHAR(250)",
+    """
+    CREATE TABLE IF NOT EXISTS archivos (
+        id SERIAL PRIMARY KEY,
+        cliente_id INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+        tipo VARCHAR(30) NOT NULL,
+        nombre_archivo VARCHAR(200) NOT NULL,
+        contenido BYTEA NOT NULL,
+        fecha_subida TIMESTAMPTZ DEFAULT NOW()
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_archivos_cliente_id ON archivos (cliente_id)",
 ]
 
 _INDEX_SQL = [

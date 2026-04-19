@@ -10,7 +10,7 @@ import {
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { Plus, Search, Pencil, Trash2, Eye, Users, Download } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, Users, Download, FileCheck } from 'lucide-react';
 import { useDebounce } from '../utils/helpers';
 import { SkeletonTable } from '../components/Skeleton';
 
@@ -199,6 +199,7 @@ export default function ClientesPage() {
                   <th>Domicilio</th>
                   <th>Empleo</th>
                   <th>Mora</th>
+                  <th>Docs</th>
                   <th style={{ width: 120 }}>Acciones</th>
                 </tr>
               </thead>
@@ -216,6 +217,11 @@ export default function ClientesPage() {
                       {c.tiene_mora
                         ? <span className="badge badge-danger">En mora</span>
                         : <span className="badge badge-success">Al día</span>}
+                    </td>
+                    <td>
+                      {c.tiene_documentos && (
+                        <FileCheck size={15} style={{ color: 'var(--success)' }} title="Tiene documentos" />
+                      )}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 6 }}>

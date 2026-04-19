@@ -1,8 +1,9 @@
 import io
+import unicodedata
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_, and_
 from datetime import date
@@ -11,8 +12,19 @@ from models.client import Cliente
 from models.prestamo import Prestamo
 from models.cuota import Cuota
 from models.pago import Pago
+from models.archivo import Archivo
 from schemas.client import ClienteCreate, ClienteRead, ClienteUpdate
 from services.auth import get_current_user
+
+TIPOS_ARCHIVO = {"pagare", "recibo_sueldo"}
+MAX_ARCHIVO_BYTES = 2 * 1024 * 1024  # 2 MB
+
+
+def _normalizar(texto: str) -> str:
+    """Elimina tildes y caracteres especiales, devuelve solo ASCII alfanumérico."""
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    return "".join(c for c in texto if c.isalnum() or c in (" ", "_", "-")).strip()
 
 router = APIRouter()
 
@@ -141,10 +153,16 @@ def list_clientes(
         .all()
     )
 
+    # IDs de clientes con documentos
+    ids_con_docs = set(
+        row[0] for row in db.query(Archivo.cliente_id).distinct().all()
+    )
+
     result = []
     for c in clientes:
         item = ClienteRead.model_validate(c)
         item.tiene_mora = c.id in ids_con_mora
+        item.tiene_documentos = c.id in ids_con_docs
         result.append(item)
     return result
 
@@ -308,3 +326,121 @@ def delete_cliente(
     db.delete(cliente)
     db.commit()
     return {"ok": True}
+
+
+# ── Archivos ──────────────────────────────────────────────────────────────────
+
+@router.get("/{cliente_id}/archivos")
+def list_archivos(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Lista los archivos del cliente (sin el contenido binario)."""
+    db.query(Cliente).filter(Cliente.id == cliente_id).first() or _404("Cliente")
+    archivos = (
+        db.query(Archivo.id, Archivo.tipo, Archivo.nombre_archivo, Archivo.fecha_subida)
+        .filter(Archivo.cliente_id == cliente_id)
+        .all()
+    )
+    return [
+        {"id": a.id, "tipo": a.tipo, "nombre_archivo": a.nombre_archivo, "fecha_subida": a.fecha_subida}
+        for a in archivos
+    ]
+
+
+@router.post("/{cliente_id}/archivos/{tipo}", status_code=201)
+async def subir_archivo(
+    cliente_id: int,
+    tipo: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Sube (o reemplaza) un archivo PDF para el cliente."""
+    if tipo not in TIPOS_ARCHIVO:
+        raise HTTPException(status_code=400, detail=f"Tipo inválido. Debe ser: {', '.join(TIPOS_ARCHIVO)}")
+    if not file.content_type or "pdf" not in file.content_type.lower():
+        raise HTTPException(status_code=400, detail="Solo se aceptan archivos PDF")
+
+    contenido = await file.read()
+    if len(contenido) > MAX_ARCHIVO_BYTES:
+        raise HTTPException(status_code=400, detail="El archivo supera los 2 MB")
+    # Validar magic bytes PDF
+    if not contenido.startswith(b"%PDF"):
+        raise HTTPException(status_code=400, detail="El archivo no es un PDF válido")
+
+    cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+    # Generar nombre de archivo
+    prefijo = "Pagare" if tipo == "pagare" else "ReciboSueldo"
+    apellido = _normalizar(cliente.apellido).replace(" ", "")
+    nombre = _normalizar(cliente.nombre).replace(" ", "")
+    dni = _normalizar(cliente.dni)
+    nombre_archivo = f"{prefijo}_{apellido}{nombre}_{dni}.pdf"
+
+    # Reemplazar si ya existe
+    existente = db.query(Archivo).filter(Archivo.cliente_id == cliente_id, Archivo.tipo == tipo).first()
+    if existente:
+        existente.contenido = contenido
+        existente.nombre_archivo = nombre_archivo
+        db.commit()
+        return {"ok": True, "nombre_archivo": nombre_archivo, "reemplazado": True}
+
+    nuevo = Archivo(
+        cliente_id=cliente_id,
+        tipo=tipo,
+        nombre_archivo=nombre_archivo,
+        contenido=contenido,
+    )
+    db.add(nuevo)
+    db.commit()
+    return {"ok": True, "nombre_archivo": nombre_archivo, "reemplazado": False}
+
+
+@router.get("/{cliente_id}/archivos/{tipo}/download")
+def descargar_archivo(
+    cliente_id: int,
+    tipo: str,
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Descarga el archivo PDF del tipo indicado."""
+    archivo = (
+        db.query(Archivo)
+        .filter(Archivo.cliente_id == cliente_id, Archivo.tipo == tipo)
+        .first()
+    )
+    if not archivo:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    return Response(
+        content=archivo.contenido,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{archivo.nombre_archivo}"'},
+    )
+
+
+@router.delete("/{cliente_id}/archivos/{tipo}", status_code=200)
+def eliminar_archivo(
+    cliente_id: int,
+    tipo: str,
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Elimina el archivo del tipo indicado para el cliente."""
+    archivo = (
+        db.query(Archivo)
+        .filter(Archivo.cliente_id == cliente_id, Archivo.tipo == tipo)
+        .first()
+    )
+    if not archivo:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    db.delete(archivo)
+    db.commit()
+    return {"ok": True}
+
+
+def _404(entidad: str):
+    raise HTTPException(status_code=404, detail=f"{entidad} no encontrado")

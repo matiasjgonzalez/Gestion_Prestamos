@@ -19,3 +19,6 @@ class Cliente(Base):
     prestamos = relationship(
         "Prestamo", back_populates="cliente", cascade="all, delete-orphan"
     )
+    archivos = relationship(
+        "Archivo", back_populates="cliente", cascade="all, delete-orphan"
+    )

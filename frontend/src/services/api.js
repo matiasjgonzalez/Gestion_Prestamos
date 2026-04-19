@@ -187,4 +187,39 @@ export const verificarMora = () => {
 
 export const getMora = (params = {}) => cachedGet('/mora/', params);
 
+// ─── Archivos ───
+export const getArchivos = (clienteId) =>
+  api.get(`/clientes/${clienteId}/archivos`);
+
+export const subirArchivo = (clienteId, tipo, file) => {
+  invalidateCache('/clientes');
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post(`/clientes/${clienteId}/archivos/${tipo}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const eliminarArchivo = (clienteId, tipo) => {
+  invalidateCache('/clientes');
+  return api.delete(`/clientes/${clienteId}/archivos/${tipo}`);
+};
+
+export const downloadArchivo = async (clienteId, tipo, nombreArchivo) => {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_URL}/clientes/${clienteId}/archivos/${tipo}/download`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Error al descargar archivo');
+  const blob = await res.blob();
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = nombreArchivo;
+  link.click();
+  URL.revokeObjectURL(link.href);
+};
+
+export const downloadMoraZip = () =>
+  downloadExcel('/mora/export/zip', 'mora.zip');
+
 export default api;

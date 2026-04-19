@@ -99,6 +99,10 @@ def obtener_cuotas_en_mora(
             "fecha_vencimiento": c.fecha_vencimiento.isoformat(),
             "monto": float(c.monto),
             "dias_atraso": (hoy - c.fecha_vencimiento).days,
+            "cliente_id": (
+                c.prestamo.cliente.id
+                if c.prestamo and c.prestamo.cliente else None
+            ),
             "cliente_nombre": (
                 f"{c.prestamo.cliente.nombre} {c.prestamo.cliente.apellido}"
                 if c.prestamo and c.prestamo.cliente else None
