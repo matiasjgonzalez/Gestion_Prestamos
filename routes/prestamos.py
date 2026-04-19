@@ -579,17 +579,21 @@ def actualizar_cuota(
     return cuota
 
 
+class NotasPayload(BaseModel):
+    notas: str = ""
+
+
 @router.patch("/{prestamo_id}/notas")
 def actualizar_notas(
     prestamo_id: int,
-    payload: dict,
+    payload: NotasPayload,
     db: Session = Depends(get_db),
     _user=Depends(get_current_user),
 ):
     p = db.query(Prestamo).filter(Prestamo.id == prestamo_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Préstamo no encontrado")
-    p.notas = payload.get("notas", "")
+    p.notas = payload.notas
     db.add(p)
     db.commit()
     return {"ok": True}
