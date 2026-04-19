@@ -502,7 +502,7 @@ export default function PrestamoDetailPage() {
 
       {/* Modal editar cuota */}
       {editCuota && (
-        <Modal title={`Editar Cuota #${editCuota.numero_cuota}`} onClose={() => {
+        <Modal title={`Editar Cuota #${editCuota.numero_cuota} — solo esta cuota`} onClose={() => {
           const dirty = editCuota.fecha_vencimiento !== editCuota._original || editCuota.monto !== editCuota._originalMonto;
           if (dirty && !window.confirm('¿Descartar cambios?')) return;
           setEditCuota(null);
@@ -532,6 +532,9 @@ export default function PrestamoDetailPage() {
                   required
                 />
               </div>
+            </div>
+            <div style={{ fontSize: '0.79rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+              Solo se modifica esta cuota. Las demás quedan sin cambios.
             </div>
             {editCuota.monto !== editCuota._originalMonto && (
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 8 }}>
