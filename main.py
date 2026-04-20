@@ -5,6 +5,11 @@ print(f"Python version: {sys.version}", flush=True)
 print(f"DATABASE_URL set: {'DATABASE_URL' in os.environ}", flush=True)
 print(f"PORT: {os.environ.get('PORT', 'NOT SET')}", flush=True)
 
+# Advertencia temprana si SECRET_KEY no fue configurada
+_SECRET_KEY_DEFAULT = "supersecretkey-cambiar-en-produccion"
+if os.getenv("SECRET_KEY", _SECRET_KEY_DEFAULT) == _SECRET_KEY_DEFAULT:
+    print("WARNING: SECRET_KEY no está configurada. Usá una clave segura en producción.", flush=True)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -79,12 +84,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Gestión de Préstamos", lifespan=lifespan)
 
+# CORS: leer orígenes permitidos desde variable de entorno
+# Formato: una URL o varias separadas por coma
+# Ej en Render: ALLOWED_ORIGINS=https://mi-app.vercel.app
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
+if not _allowed_origins:
+    # Sin configurar: en desarrollo permite localhost, en producción advertir
+    _allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
+    print("WARNING: ALLOWED_ORIGINS no está configurada. CORS restringido a localhost.", flush=True)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
