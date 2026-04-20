@@ -91,9 +91,12 @@ _raw_origins = os.getenv("ALLOWED_ORIGINS", "")
 _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 if not _allowed_origins:
-    # Sin configurar: en desarrollo permite localhost, en producción advertir
-    _allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
-    print("WARNING: ALLOWED_ORIGINS no está configurada. CORS restringido a localhost.", flush=True)
+    _allowed_origins = [
+        "https://gestion-prestamos-rho.vercel.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
+    print("WARNING: ALLOWED_ORIGINS no está configurada. Usando orígenes por defecto.", flush=True)
 
 app.add_middleware(
     CORSMiddleware,
