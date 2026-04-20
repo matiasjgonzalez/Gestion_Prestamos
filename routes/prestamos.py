@@ -420,12 +420,15 @@ def cancelar_prestamo(
         db.query(Cuota)
         .filter(
             Cuota.prestamo_id == prestamo_id,
-            Cuota.estado.in_(["pendiente", "vencida"]),
+            Cuota.estado.in_(["pendiente", "vencida", "parcial"]),
         )
         .all()
     )
 
-    total_restante = sum(float(c.monto) for c in cuotas_pendientes)
+    total_restante = sum(
+        float(c.monto) - float(c.monto_pagado_parcial or 0)
+        for c in cuotas_pendientes
+    )
 
     for c in cuotas_pendientes:
         c.estado = "pagada"
