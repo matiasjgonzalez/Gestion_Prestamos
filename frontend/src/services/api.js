@@ -112,6 +112,11 @@ export const desmarcarCuotaPagada = (prestamoId, cuotaId) => {
   return api.post(`/prestamos/${prestamoId}/cuotas/${cuotaId}/desmarcar-pagada`);
 };
 
+export const pagarCuotaParcial = (prestamoId, cuotaId, monto) => {
+  invalidateCache('/prestamos');
+  return api.post(`/prestamos/${prestamoId}/cuotas/${cuotaId}/pago-parcial`, { monto });
+};
+
 export const refinanciarPrestamo = (prestamoId, cuotasDetalle) => {
   invalidateCache('/prestamos');
   return api.post(`/prestamos/${prestamoId}/refinanciar`, { cuotas_detalle: cuotasDetalle });

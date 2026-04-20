@@ -5,6 +5,7 @@ import {
   registrarPago,
   marcarCuotaPagada,
   desmarcarCuotaPagada,
+  pagarCuotaParcial,
   cancelarPrestamo,
   updateCuota,
   refinanciarPrestamo,
@@ -18,12 +19,12 @@ import { ArrowLeft, DollarSign, Calendar, Hash, CheckCircle, Pencil, RotateCcw, 
 import { formatMoney } from '../utils/helpers';
 import { SkeletonCards, SkeletonTable } from '../components/Skeleton';
 
-function cuotaBadge(estado, parcial) {
-  if (parcial) return <span className="badge badge-warning">Pago parcial</span>;
+function cuotaBadge(estado) {
   switch (estado) {
-    case 'pagada': return <span className="badge badge-success">Pagada</span>;
+    case 'pagada':  return <span className="badge badge-success">Pagada</span>;
+    case 'parcial': return <span className="badge badge-warning">Pago parcial</span>;
     case 'vencida': return <span className="badge badge-danger">Vencida</span>;
-    default: return <span className="badge badge-warning">Pendiente</span>;
+    default:        return <span className="badge" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>Pendiente</span>;
   }
 }
 
@@ -43,6 +44,8 @@ export default function PrestamoDetailPage() {
   const [notasDirty, setNotasDirty] = useState(false);
   const [savingNotas, setSavingNotas] = useState(false);
   const [showRefinanciarModal, setShowRefinanciarModal] = useState(false);
+  const [editParcial, setEditParcial] = useState(null); // {id, numero_cuota, monto, monto_pagado_parcial}
+  const [parcialMonto, setParcialMonto] = useState('');
   const [refForm, setRefForm] = useState({ numCuotas: '1', montoPorCuota: '', fechaInicio: '', tipo: 'mensual' });
   const [refFechas, setRefFechas] = useState(['']);
   const CUOTAS_PAGE = 10;
@@ -158,6 +161,27 @@ export default function PrestamoDetailPage() {
       reload();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Error al actualizar');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePagoParcial = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    const monto = parseFloat(parcialMonto);
+    const restante = editParcial.monto - editParcial.monto_pagado_parcial;
+    if (!monto || monto <= 0) { toast.error('El monto debe ser mayor a 0'); return; }
+    if (monto >= restante) { toast.error(`El monto debe ser menor a la deuda restante (${formatMoney(restante)})`); return; }
+    setSubmitting(true);
+    try {
+      await pagarCuotaParcial(id, editParcial.id, monto);
+      toast.success(`Pago parcial registrado en cuota #${editParcial.numero_cuota}`);
+      setEditParcial(null);
+      setParcialMonto('');
+      reload();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al registrar pago parcial');
     } finally {
       setSubmitting(false);
     }
@@ -398,34 +422,45 @@ export default function PrestamoDetailPage() {
           </thead>
           <tbody>
             {(showAllCuotas ? cuotas_rel : cuotas_rel.slice(0, CUOTAS_PAGE)).map((c) => {
-              const parcial = c.estado !== 'pagada' && c.monto_efectivo != null && c.monto_efectivo < c.monto && c.monto_efectivo > 0;
+              const restante = c.monto - (c.monto_pagado_parcial || 0);
               return (
               <tr key={c.id}>
                 <td className="text-mono">{c.numero_cuota}</td>
                 <td>{new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR')}</td>
                 <td className="text-mono">
-                  {parcial ? (
+                  {c.estado === 'parcial' ? (
                     <span>
-                      {formatMoney(c.monto_efectivo)}{' '}
-                      <span className="text-muted" style={{ fontSize: '0.78rem', textDecoration: 'line-through' }}>
-                        {formatMoney(c.monto)}
+                      <span style={{ color: 'var(--warning)' }}>{formatMoney(restante)}</span>{' '}
+                      <span className="text-muted" style={{ fontSize: '0.78rem' }}>
+                        de {formatMoney(c.monto)}
                       </span>
                     </span>
                   ) : formatMoney(c.monto)}
                 </td>
-                <td>{cuotaBadge(c.estado, parcial)}</td>
+                <td>{cuotaBadge(c.estado)}</td>
                 {prestamo.estado === 'activo' && (
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {c.estado !== 'pagada' && (
-                      <button
-                        className="btn-icon"
-                        title="Editar fecha"
-                        onClick={() => setEditCuota({ id: c.id, numero_cuota: c.numero_cuota, fecha_vencimiento: c.fecha_vencimiento, _original: c.fecha_vencimiento, monto: String(c.monto), _originalMonto: String(c.monto) })}
-                        disabled={submitting}
-                      >
-                        <Pencil size={13} />
-                      </button>
+                        <button
+                          className="btn-icon"
+                          title="Editar cuota"
+                          onClick={() => setEditCuota({ id: c.id, numero_cuota: c.numero_cuota, fecha_vencimiento: c.fecha_vencimiento, _original: c.fecha_vencimiento, monto: String(c.monto), _originalMonto: String(c.monto) })}
+                          disabled={submitting}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                      {c.estado !== 'pagada' && (
+                        <button
+                          className="btn-icon"
+                          title="Pago parcial"
+                          style={{ color: 'var(--warning)' }}
+                          onClick={() => { setEditParcial({ id: c.id, numero_cuota: c.numero_cuota, monto: c.monto, monto_pagado_parcial: c.monto_pagado_parcial || 0 }); setParcialMonto(''); }}
+                          disabled={submitting}
+                        >
+                          <DollarSign size={13} />
+                        </button>
                       )}
                       {c.estado !== 'pagada' ? (
                         <button
@@ -547,6 +582,53 @@ export default function PrestamoDetailPage() {
               <button type="button" className="btn btn-secondary" onClick={() => setEditCuota(null)}>Cancelar</button>
               <button type="submit" className="btn btn-primary" disabled={submitting}>
                 {submitting ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Modal pago parcial */}
+      {editParcial && (
+        <Modal title={`Pago parcial — Cuota #${editParcial.numero_cuota}`} onClose={() => setEditParcial(null)}>
+          <form onSubmit={handlePagoParcial}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 14, fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span className="text-muted">Monto total cuota</span>
+                <strong>{formatMoney(editParcial.monto)}</strong>
+              </div>
+              {editParcial.monto_pagado_parcial > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span className="text-muted">Ya pagado</span>
+                  <span style={{ color: 'var(--success)' }}>{formatMoney(editParcial.monto_pagado_parcial)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                <span>Deuda restante</span>
+                <span style={{ color: 'var(--warning)' }}>{formatMoney(editParcial.monto - editParcial.monto_pagado_parcial)}</span>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Monto a pagar ahora</label>
+              <input
+                className="form-control no-spinner"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={parcialMonto}
+                onChange={(e) => setParcialMonto(e.target.value)}
+                placeholder={`Menos de ${formatMoney(editParcial.monto - editParcial.monto_pagado_parcial)}`}
+                required
+                autoFocus
+              />
+            </div>
+            <div style={{ fontSize: '0.79rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+              La cuota quedará en estado <strong>Pago parcial</strong>. Podés editar su monto luego para agregar intereses.
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditParcial(null)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Registrando...' : 'Registrar pago parcial'}
               </button>
             </div>
           </form>

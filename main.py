@@ -21,6 +21,7 @@ _MIGRATE_SQL = [
     "ALTER TABLE pagos ADD COLUMN IF NOT EXISTS cuota_id INTEGER REFERENCES cuotas(id)",
     "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS empleo VARCHAR(250)",
     "ALTER TABLE prestamos ADD COLUMN IF NOT EXISTS notas TEXT",
+    "ALTER TABLE cuotas ADD COLUMN IF NOT EXISTS monto_pagado_parcial NUMERIC(12,2) DEFAULT 0",
     """
     CREATE TABLE IF NOT EXISTS archivos (
         id SERIAL PRIMARY KEY,

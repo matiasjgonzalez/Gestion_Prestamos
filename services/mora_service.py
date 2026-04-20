@@ -1,6 +1,6 @@
 from datetime import date
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func as sqlfunc, or_
+from sqlalchemy import func as sqlfunc, or_, and_
 from models.cuota import Cuota
 from models.prestamo import Prestamo
 from models.client import Cliente
@@ -18,7 +18,11 @@ def obtener_clientes_en_mora(
     """
     hoy = date.today()
 
-    filters = [Cuota.estado == "vencida"]
+    mora_cond = or_(
+        Cuota.estado == "vencida",
+        and_(Cuota.estado == "parcial", Cuota.fecha_vencimiento < hoy),
+    )
+    filters = [mora_cond]
     if search:
         term = f"%{search}%"
         filters.append(
@@ -127,7 +131,11 @@ def obtener_cuotas_en_mora(
     hoy = date.today()
 
     # Filtros base reutilizables
-    filters = [Cuota.estado == "vencida"]
+    mora_cond2 = or_(
+        Cuota.estado == "vencida",
+        and_(Cuota.estado == "parcial", Cuota.fecha_vencimiento < hoy),
+    )
+    filters = [mora_cond2]
     if search:
         term = f"%{search}%"
         filters.append(

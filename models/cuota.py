@@ -13,6 +13,7 @@ class Cuota(Base):
     numero_cuota = Column(Integer, nullable=False)
     fecha_vencimiento = Column(Date, nullable=False, index=True)
     monto = Column(Numeric(12, 2), nullable=False)
+    monto_pagado_parcial = Column(Numeric(12, 2), nullable=True, default=0)
     estado = Column(String(30), nullable=False, default="pendiente", index=True)
 
     __table_args__ = (

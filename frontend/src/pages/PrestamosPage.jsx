@@ -45,7 +45,7 @@ export default function PrestamosPage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '', tipo_prestamo: 'mensual' });
-  const [numCuotasStr, setNumCuotasStr] = useState('1');
+  const [numCuotasStr, setNumCuotasStr] = useState('');
   const numCuotas = Math.max(0, parseInt(numCuotasStr) || 0);
   const [fechasCuotas, setFechasCuotas] = useState(['']);
   const [confirmModal, setConfirmModal] = useState(null);
@@ -113,7 +113,7 @@ export default function PrestamosPage() {
 
   const openCreate = () => {
     setForm({ cliente_id: '', monto: '', interes_total: '', fecha_inicio: '', tipo_prestamo: 'mensual' });
-    setNumCuotasStr('1');
+    setNumCuotasStr('');
     setFechasCuotas(['']);
     setClienteSearch('');
     setClientes([]);

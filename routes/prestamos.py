@@ -46,8 +46,13 @@ def dashboard(
     total_prestado = float(qp.with_entities(sqlfunc.coalesce(sqlfunc.sum(Prestamo.monto), 0)).scalar())
     total_cobrado  = float(qpg.with_entities(sqlfunc.coalesce(sqlfunc.sum(Pago.monto_pagado), 0)).scalar())
     deuda_total    = round(float(
-        qc.filter(Cuota.estado.in_(["pendiente", "vencida"]))
-          .with_entities(sqlfunc.coalesce(sqlfunc.sum(Cuota.monto), 0)).scalar()
+        qc.filter(Cuota.estado.in_(["pendiente", "vencida", "parcial"]))
+          .with_entities(sqlfunc.coalesce(sqlfunc.sum(
+              case(
+                  (Cuota.estado == "parcial", Cuota.monto - sqlfunc.coalesce(Cuota.monto_pagado_parcial, 0)),
+                  else_=Cuota.monto,
+              )
+          ), 0)).scalar()
     ), 2)
     prestamos_activos = qp.filter(Prestamo.estado == "activo").count()
     clientes_count    = qp.with_entities(sqlfunc.count(sqlfunc.distinct(Prestamo.cliente_id))).scalar() or 0
@@ -139,14 +144,18 @@ def detalle_completo(
     cuotas_sorted = sorted(prestamo.cuotas_rel, key=lambda c: c.numero_cuota)
     pagos_sorted = sorted(prestamo.pagos, key=lambda p: p.fecha_pago, reverse=True)
 
-    # Compute monto_efectivo: unattributed surplus reduces the first unpaid cuota
-    sum_pagadas = sum(float(c.monto) for c in cuotas_sorted if c.estado == "pagada")
-    surplus = max(0.0, total_pagado - sum_pagadas)
+    # Compute monto_efectivo
+    sum_pagadas  = sum(float(c.monto) for c in cuotas_sorted if c.estado == "pagada")
+    sum_parciales = sum(float(c.monto_pagado_parcial or 0) for c in cuotas_sorted if c.estado == "parcial")
+    surplus = max(0.0, total_pagado - sum_pagadas - sum_parciales)
     cuotas_data = []
     for c in cuotas_sorted:
         c_monto = float(c.monto)
+        monto_parcial = float(c.monto_pagado_parcial or 0)
         if c.estado == "pagada":
             efectivo = 0.0
+        elif c.estado == "parcial":
+            efectivo = round(c_monto - monto_parcial, 2)
         elif surplus > 0:
             efectivo = max(0.0, round(c_monto - surplus, 2))
             surplus = max(0.0, surplus - c_monto)
@@ -156,7 +165,9 @@ def detalle_completo(
             "id": c.id, "prestamo_id": c.prestamo_id,
             "numero_cuota": c.numero_cuota,
             "fecha_vencimiento": c.fecha_vencimiento.isoformat(),
-            "monto": c_monto, "monto_efectivo": efectivo, "estado": c.estado,
+            "monto": c_monto, "monto_efectivo": efectivo,
+            "monto_pagado_parcial": monto_parcial,
+            "estado": c.estado,
         })
 
     return {
@@ -211,14 +222,18 @@ def marcar_cuota_pagada(
     if cuota.estado == "pagada":
         raise HTTPException(status_code=400, detail="La cuota ya está pagada")
 
+    # Si hay pago parcial previo, solo se paga el saldo restante
+    monto_ya_pagado = float(cuota.monto_pagado_parcial or 0)
+    monto_a_pagar = round(float(cuota.monto) - monto_ya_pagado, 2)
+
     cuota.estado = "pagada"
     db.add(cuota)
 
-    # Registrar pago automático
+    # Registrar pago automático por el saldo restante
     pago = Pago(
         prestamo_id=prestamo_id,
         cuota_id=cuota_id,
-        monto_pagado=float(cuota.monto),
+        monto_pagado=monto_a_pagar,
         fecha_pago=datetime.now(timezone.utc),
         dias_atraso=max(0, (date.today() - cuota.fecha_vencimiento).days) if cuota.fecha_vencimiento <= date.today() else 0,
     )
@@ -259,14 +274,19 @@ def desmarcar_cuota_pagada(
     if cuota.estado != "pagada":
         raise HTTPException(status_code=400, detail="La cuota no está marcada como pagada")
 
-    # Restaurar estado según si venció o no
-    cuota.estado = "vencida" if cuota.fecha_vencimiento < date.today() else "pendiente"
+    # Restaurar estado: si tenía pago parcial, vuelve a "parcial"; sino, pendiente/vencida
+    monto_parcial = float(cuota.monto_pagado_parcial or 0)
+    if monto_parcial > 0:
+        cuota.estado = "parcial"
+    else:
+        cuota.estado = "vencida" if cuota.fecha_vencimiento < date.today() else "pendiente"
     db.add(cuota)
 
-    # Eliminar el pago automático vinculado a esta cuota
+    # Eliminar el pago más reciente vinculado a esta cuota (el que completó el pago)
     pago_auto = (
         db.query(Pago)
         .filter(Pago.prestamo_id == prestamo_id, Pago.cuota_id == cuota_id)
+        .order_by(Pago.fecha_pago.desc())
         .first()
     )
     if pago_auto:
@@ -280,6 +300,61 @@ def desmarcar_cuota_pagada(
 
     db.commit()
     return {"ok": True, "message": f"Cuota #{cuota.numero_cuota} desmarcada"}
+
+
+class ParcialPayload(BaseModel):
+    monto: float
+
+
+@router.post("/{prestamo_id}/cuotas/{cuota_id}/pago-parcial")
+def pago_parcial_cuota(
+    prestamo_id: int,
+    cuota_id: int,
+    payload: ParcialPayload,
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    """Registra un pago parcial sobre una cuota específica."""
+    cuota = (
+        db.query(Cuota)
+        .filter(Cuota.id == cuota_id, Cuota.prestamo_id == prestamo_id)
+        .first()
+    )
+    if not cuota:
+        raise HTTPException(status_code=404, detail="Cuota no encontrada")
+    if cuota.estado == "pagada":
+        raise HTTPException(status_code=400, detail="La cuota ya está pagada")
+
+    monto_ya_pagado = float(cuota.monto_pagado_parcial or 0)
+    monto_restante = round(float(cuota.monto) - monto_ya_pagado, 2)
+
+    if payload.monto <= 0:
+        raise HTTPException(status_code=400, detail="El monto debe ser mayor a 0")
+    if payload.monto >= monto_restante:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El monto supera o iguala la deuda restante (${monto_restante:,.2f}). Para pago total usá 'Marcar como pagada'.",
+        )
+
+    nuevo_parcial = round(monto_ya_pagado + payload.monto, 2)
+    cuota.monto_pagado_parcial = nuevo_parcial
+    cuota.estado = "parcial"
+    db.add(cuota)
+
+    pago = Pago(
+        prestamo_id=prestamo_id,
+        cuota_id=cuota_id,
+        monto_pagado=payload.monto,
+        fecha_pago=datetime.now(timezone.utc),
+        dias_atraso=max(0, (date.today() - cuota.fecha_vencimiento).days) if cuota.fecha_vencimiento <= date.today() else 0,
+    )
+    db.add(pago)
+    db.commit()
+    return {
+        "ok": True,
+        "monto_pagado_total": nuevo_parcial,
+        "monto_restante": round(float(cuota.monto) - nuevo_parcial, 2),
+    }
 
 
 class RefinanciarPayload(BaseModel):
