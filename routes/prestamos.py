@@ -144,6 +144,8 @@ def detalle_completo(
     cuotas_sorted = sorted(prestamo.cuotas_rel, key=lambda c: c.numero_cuota)
     pagos_sorted = sorted(prestamo.pagos, key=lambda p: p.fecha_pago, reverse=True)
 
+    hoy = date.today()
+
     # Compute monto_efectivo
     sum_pagadas  = sum(float(c.monto) for c in cuotas_sorted if c.estado == "pagada")
     sum_parciales = sum(float(c.monto_pagado_parcial or 0) for c in cuotas_sorted if c.estado == "parcial")
@@ -152,6 +154,11 @@ def detalle_completo(
     for c in cuotas_sorted:
         c_monto = float(c.monto)
         monto_parcial = float(c.monto_pagado_parcial or 0)
+        # Estado efectivo: cuota pendiente vencida → mostrar como vencida sin tocar la BD
+        if c.estado == "pendiente" and c.fecha_vencimiento < hoy:
+            estado_efectivo = "vencida"
+        else:
+            estado_efectivo = c.estado
         if c.estado == "pagada":
             efectivo = 0.0
         elif c.estado == "parcial":
@@ -167,7 +174,7 @@ def detalle_completo(
             "fecha_vencimiento": c.fecha_vencimiento.isoformat(),
             "monto": c_monto, "monto_efectivo": efectivo,
             "monto_pagado_parcial": monto_parcial,
-            "estado": c.estado,
+            "estado": estado_efectivo,
         })
 
     return {

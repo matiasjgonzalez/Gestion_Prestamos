@@ -21,6 +21,7 @@ def obtener_clientes_en_mora(
     mora_cond = or_(
         Cuota.estado == "vencida",
         and_(Cuota.estado == "parcial", Cuota.fecha_vencimiento < hoy),
+        and_(Cuota.estado == "pendiente", Cuota.fecha_vencimiento < hoy),
     )
     filters = [mora_cond]
     if search:
@@ -134,6 +135,7 @@ def obtener_cuotas_en_mora(
     mora_cond2 = or_(
         Cuota.estado == "vencida",
         and_(Cuota.estado == "parcial", Cuota.fecha_vencimiento < hoy),
+        and_(Cuota.estado == "pendiente", Cuota.fecha_vencimiento < hoy),
     )
     filters = [mora_cond2]
     if search:
